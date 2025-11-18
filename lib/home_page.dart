@@ -1,9 +1,7 @@
 // lib/home_page.dart
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'discover_page.dart';
 
 
 // Brand colors (TKO)
@@ -84,35 +82,6 @@ class _HomePageState extends State<HomePage> {
 }
 
 
-// Profile
-class _ProfileTab extends StatelessWidget {
-  const _ProfileTab();
-  @override
-  Widget build(BuildContext context) {
-    final u = FirebaseAuth.instance.currentUser;
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        ListTile(
-          leading: CircleAvatar(
-            backgroundImage:
-            (u?.photoURL != null) ? NetworkImage(u!.photoURL!) : null,
-            child: (u?.photoURL == null) ? const Icon(Icons.person) : null,
-          ),
-          title: Text(u?.displayName ?? 'Member'),
-          subtitle: Text(u?.email ?? ''),
-        ),
-        const Divider(),
-        ListTile(
-          leading: const Icon(Icons.logout),
-          title: const Text('Sign out'),
-          onTap: () => FirebaseAuth.instance.signOut(),
-        ),
-      ],
-    );
-  }
-}
-
 // BRAND BOTTOM NAV
 class TkoBottomNav extends StatelessWidget {
   final int index;
@@ -159,13 +128,6 @@ class TkoBottomNav extends StatelessWidget {
               icon: Icons.auto_awesome_outlined,
               activeIcon: Icons.auto_awesome,
               label: 'Discover',
-              isActive: false,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const OffersListScreen()),
-                );
-              },
             ),
             _NavItem(
               icon: Icons.person_outline,
