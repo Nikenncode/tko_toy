@@ -33,9 +33,12 @@ class _LoginSignupPageState extends State<LoginSignupPage>
   final upPass2 = TextEditingController();
 
   bool loadingEmail = false;
+  bool loadingGoogle = false;
 
   void _toast(String m) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+
+
 
   Future<void> _signInEmail() async {
     await Member2EmailAuth.signInEmail(
@@ -70,6 +73,16 @@ class _LoginSignupPageState extends State<LoginSignupPage>
       setLoading: (value) {
         if (!mounted) return;
         setState(() => loadingEmail = value);
+      },
+    );
+  }
+
+  Future<void> _google() async {
+    await Member1GoogleAuth.signInWithGoogle(
+      showToast: _toast,
+      setLoading: (value) {
+        if (!mounted) return;
+        setState(() => loadingGoogle = value);
       },
     );
   }
@@ -131,6 +144,43 @@ class _LoginSignupPageState extends State<LoginSignupPage>
                         ),
                       ),
                       const SizedBox(height: 24),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: OutlinedButton(
+                          onPressed: loadingGoogle ? null : _google,
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: Colors.black.withOpacity(.12),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            foregroundColor: Colors.black,
+                            textStyle: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          child: loadingGoogle
+                              ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          )
+                              : const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.g_mobiledata_rounded, size: 26),
+                              SizedBox(width: 8),
+                              Text('Sign in with Google'),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
 
                       Row(
                         children: const [
@@ -392,6 +442,36 @@ class Member2EmailAuth {
   }
 }
 
+class Member1GoogleAuth {
+  static Future<void> signInWithGoogle({
+    required void Function(String) showToast,
+    required void Function(bool) setLoading,
+  }) async {
+    setLoading(true);
+    try {
+      final gUser = await GoogleSignIn().signIn();
+      if (gUser == null) {
+        setLoading(false);
+        return;
+      }
+      final gAuth = await gUser.authentication;
+      final cred = GoogleAuthProvider.credential(
+        accessToken: gAuth.accessToken,
+        idToken: gAuth.idToken,
+      );
+      final result =
+      await FirebaseAuth.instance.signInWithCredential(cred);
+
+      // Reuse Member 2's Firestore user doc helper
+      await Member2EmailAuth._ensureUserDoc(result.user!);
+    } catch (_) {
+      showToast(
+          'Google sign-in failed. Check SHA-1/256 & google-services.json.');
+    } finally {
+      setLoading(false);
+    }
+  }
+}
 
 
 class _Field extends StatelessWidget {
