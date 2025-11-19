@@ -1,4 +1,3 @@
-
 {
   "project_info": {
     "project_number": "345861978832",
@@ -6,6 +5,42 @@
     "storage_bucket": "tko-loyalty-405e2.firebasestorage.app"
   },
   "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:345861978832:android:55e92bce0791819df97cd5",
+        "android_client_info": {
+          "package_name": "com.example.tko_toy"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "345861978832-8pmdu8m6gkt8mh8lqoa77kf4tnt08mca.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCcVdKEleSw5naZ-K28NIea7o_oSquIieE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "345861978832-8pmdu8m6gkt8mh8lqoa77kf4tnt08mca.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "345861978832-corss5fcnlstlrrhshrahtv02brth2po.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.tkoToy"
+              }
+            }
+          ]
+        }
+      }
+    },
     {
       "client_info": {
         "mobilesdk_app_id": "1:345861978832:android:a6ebab3495e13a58f97cd5",
@@ -40,10 +75,10 @@
               "client_type": 3
             },
             {
-              "client_id": "345861978832-mefo7hbp77r5f4sa8iedj05t0p7086l1.apps.googleusercontent.com",
+              "client_id": "345861978832-corss5fcnlstlrrhshrahtv02brth2po.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.tkotoylogin"
+                "bundle_id": "com.example.tkoToy"
               }
             }
           ]
