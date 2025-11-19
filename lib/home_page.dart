@@ -4,9 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-
+import 'package:simple_icons/simple_icons.dart';
 import 'membership_qr_page.dart';
-
+import 'discord_page.dart';
+import 'products_page.dart';
+import 'discover_page.dart';
 
 // Brand colors (TKO)
 const tkoOrange = Color(0xFFFF6A00);
@@ -905,7 +907,10 @@ class _ActionGrid extends StatelessWidget {
               startColor: tkoTeal.withOpacity(.18),
               endColor: tkoTeal.withOpacity(.60),
               onTap: () {
-                // TODO: navigate to order screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProductsPage()),
+                );
               },
             ),
             _PrimaryActionCard(
@@ -916,19 +921,19 @@ class _ActionGrid extends StatelessWidget {
               endColor: tkoBrown.withOpacity(.55),
               onTap: () => _openQuickScan(context),
             ),
-            // _PrimaryActionCard(
-            //   icon: SimpleIcons.discord,
-            //   label: 'Discord',
-            //   subtitle: 'Connect with the community',
-            //   startColor: tkoTeal.withOpacity(.16),
-            //   endColor: tkoTeal.withOpacity(.55),
-            //   onTap: () {
-            //     Navigator.push(
-            //       context,
-            //       MaterialPageRoute(builder: (_) => const DiscordPage()),
-            //     );
-            //   },
-            // ),
+            _PrimaryActionCard(
+              icon: SimpleIcons.discord,
+              label: 'Discord',
+              subtitle: 'Connect with the community',
+              startColor: tkoTeal.withOpacity(.16),
+              endColor: tkoTeal.withOpacity(.55),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DiscordScreen()),
+                );
+              },
+            ),
           ],
         ),
         const SizedBox(height: 14),
@@ -1405,8 +1410,13 @@ class TkoBottomNav extends StatelessWidget {
               icon: Icons.auto_awesome_outlined,
               activeIcon: Icons.auto_awesome,
               label: 'Discover',
-              isActive: index == 2,
-              onTap: () => onChanged(2),
+              isActive: false,  // discover is NOT a tab
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const OffersListScreen()),
+                );
+              },
             ),
             _NavItem(
               icon: Icons.person_outline,
