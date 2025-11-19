@@ -64,7 +64,7 @@ class DiscordScreen extends StatelessWidget {
             const SizedBox(height: 30),
 
             Image.asset(
-              'assets/discord_logo.png',
+              'assets/branding/discord_logo.png',
               height: 150,
             ),
             const SizedBox(height: 30),
@@ -85,7 +85,7 @@ class DiscordScreen extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: _launchDiscord,
                 icon: Image.asset(
-                  'assets/discord_icon.png',
+                  'assets/branding/discord_icon.png',
                   height: 28,
                 ),
                 label: Text(

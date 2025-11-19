@@ -62,8 +62,10 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
   assets:
-    - assets/discord_logo.png
-    - assets/discord_icon.png
+    - assets/branding/discord_logo.png
+    - assets/branding/discord_icon.png
+    - assets/branding/tko_logo.png
+    - assets/branding/tko_cross_bg.png
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

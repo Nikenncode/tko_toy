@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "345861978832-hlp09lgdb6f4k0f8gmiopnqeh20d0ns2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tko_toy",
+            "certificate_hash": "bcc009bbe3ff5dddbe9c091d564893655a5f98ef"
+          }
+        },
+        {
           "client_id": "345861978832-8pmdu8m6gkt8mh8lqoa77kf4tnt08mca.apps.googleusercontent.com",
           "client_type": 3
         }
