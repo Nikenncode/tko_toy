@@ -38,6 +38,7 @@ dependencies:
   cached_network_image: ^3.4.1
   google_sign_in: ^6.2.1
   google_fonts: ^6.2.1
+  url_launcher: ^6.3.0
 
 
   # The following adds the Cupertino Icons font to your application.
@@ -60,6 +61,9 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  assets:
+    - assets/discord_logo.png
+    - assets/discord_icon.png
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
