@@ -31,11 +31,21 @@ class DiscordScreen extends StatelessWidget {
         },
       ),
       appBar: AppBar(
-        title: Text(
-          "Join Our Community",
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-        ),
         backgroundColor: Colors.white,
+        elevation: 0.5,
+        automaticallyImplyLeading: true,
+        centerTitle: false,
+        title: Padding(
+          padding: const EdgeInsets.only(left: 0),
+          child: Text(
+            "Join Our Community",
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              color: Colors.black87,
+            ),
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
