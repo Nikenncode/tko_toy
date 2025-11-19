@@ -1,11 +1,10 @@
 // lib/home_page.dart
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'discord_page.dart';
+
 import 'membership_qr_page.dart';
 
 
@@ -29,11 +28,10 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final pages = <Widget>[
       const _HomeTab(),
-      const MembershipQRPage(), // Scan tab -> membership QR page
+      const MembershipQRPage(),
       const _DiscoverTab(),
       const _ProfileTab(),
     ];
-
 
     return Scaffold(
       appBar: AppBar(
@@ -932,7 +930,7 @@ class _ActionGrid extends StatelessWidget {
               onTap: () => _openQuickScan(context),
             ),
             // _PrimaryActionCard(
-            //   icon: Icons.directions_car_outlined,
+            //   icon: SimpleIcons.discord,
             //   label: 'Discord',
             //   subtitle: 'Connect with the community',
             //   startColor: tkoTeal.withOpacity(.16),
@@ -940,7 +938,7 @@ class _ActionGrid extends StatelessWidget {
             //   onTap: () {
             //     Navigator.push(
             //       context,
-            //       MaterialPageRoute(builder: (_) => const discordPage()),
+            //       MaterialPageRoute(builder: (_) => const DiscordPage()),
             //     );
             //   },
             // ),
@@ -964,10 +962,6 @@ class _ActionGrid extends StatelessWidget {
       ],
     );
   }
-}
-
-class discord_Page {
-  const discord_Page();
 }
 
 class _PrimaryActionCard extends StatelessWidget {
@@ -1104,7 +1098,7 @@ Widget _bubble(double size, Color c) => Container(
   decoration: BoxDecoration(color: c, shape: BoxShape.circle),
 );
 
-// Benefits sheet
+// / Benefits sheet
 class _BenefitsSheet extends StatefulWidget {
   final int currentPoints;
   final List<_Tier> tiers;
@@ -1440,6 +1434,7 @@ class TkoBottomNav extends StatelessWidget {
     );
   }
 }
+
 
 class _NavItem extends StatelessWidget {
   final IconData icon;
