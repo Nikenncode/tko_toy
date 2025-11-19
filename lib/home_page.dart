@@ -1,4 +1,3 @@
-// lib/home_page.dart
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,6 +8,11 @@ import 'membership_qr_page.dart';
 import 'discord_page.dart';
 import 'products_page.dart';
 import 'discover_page.dart';
+import 'notifications_page.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';   // <-- add
+import 'notification_service.dart';                            // <-- add
+
+
 
 // Brand colors (TKO)
 const tkoOrange = Color(0xFFFF6A00);
@@ -17,14 +21,82 @@ const tkoBrown  = Color(0xFF6A3B1A);
 const tkoTeal   = Color(0xFF00B8A2);
 const tkoGold   = Color(0xFFFFD23F);
 
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.init();
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: const HomePage(),
+    );
+  }
+}
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final int initialTab;
+
+  const HomePage({super.key, this.initialTab = 0});
+
+
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  int index = 0;
+  late int index;
+
+
+  @override
+  void initState() {
+    super.initState();
+    index = widget.initialTab;
+    _initPushNotifications();
+  }
+
+  Future<void> _initPushNotifications() async {
+    final messaging = FirebaseMessaging.instance;
+
+    await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    final token = await messaging.getToken();
+    debugPrint('FCM TOKEN: $token');
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      debugPrint('🔥 FCM onMessage received!');
+      final notif = message.notification;
+
+      if (uid != null && notif != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('notifications')
+            .add({
+          'title': notif.title ?? 'New update',
+          'body': notif.body ?? '',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (notif != null) {
+        await NotificationService.showBasic(     // <-- ✅ correct
+          title: notif.title ?? 'New update',
+          body: notif.body ?? '',
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +129,12 @@ class _HomePageState extends State<HomePage> {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationsPage()),
+              );
+            },
             icon: const Icon(Icons.notifications_none, color: Colors.black87),
           ),
           IconButton(
@@ -69,7 +146,16 @@ class _HomePageState extends State<HomePage> {
       body: SafeArea(child: pages[index]),
       bottomNavigationBar: TkoBottomNav(
         index: index,
-        onChanged: (i) => setState(() => index = i),
+        onChanged: (i) {
+          if (i == 2) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const OffersListScreen()),
+            );
+            return;
+          }
+          setState(() => index = i);
+        },
       ),
       backgroundColor: Colors.white,
     );
@@ -1410,11 +1496,13 @@ class TkoBottomNav extends StatelessWidget {
               icon: Icons.auto_awesome_outlined,
               activeIcon: Icons.auto_awesome,
               label: 'Discover',
-              isActive: false,  // discover is NOT a tab
+              isActive: index == 2,
               onTap: () {
-                Navigator.push(
+                Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (_) => const OffersListScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const OffersListScreen(),
+                  ),
                 );
               },
             ),

@@ -40,6 +40,9 @@ dependencies:
   google_fonts: ^6.2.1
   url_launcher: ^6.3.0
   simple_icons: ^10.0.0
+  firebase_messaging: ^15.2.10
+  flutter_local_notifications: ^18.0.0
+
 
 
   # The following adds the Cupertino Icons font to your application.
