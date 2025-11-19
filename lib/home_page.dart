@@ -38,10 +38,7 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-
-        title: index == 1
-            ? const SizedBox.shrink()
-            : SizedBox(
+        title: SizedBox(
           height: 36,
           child: Image.asset(
             'assets/branding/tko_logo.png',
@@ -56,29 +53,18 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
-
-        actions: index == 1
-            ? const []
-            : [
+        actions: [
           IconButton(
             onPressed: () {},
-            icon: const Icon(
-              Icons.notifications_none,
-              color: Colors.black87,
-            ),
+            icon: const Icon(Icons.notifications_none, color: Colors.black87),
           ),
           IconButton(
             onPressed: () {},
-            icon: const Icon(
-              Icons.account_circle_outlined,
-              color: Colors.black87,
-            ),
+            icon: const Icon(Icons.account_circle_outlined, color: Colors.black87),
           ),
         ],
       ),
-
       body: SafeArea(child: pages[index]),
-
       bottomNavigationBar: TkoBottomNav(
         index: index,
         onChanged: (i) => setState(() => index = i),
@@ -87,6 +73,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
 
 // HOME TAB
 class _HomeTab extends StatelessWidget {

@@ -153,23 +153,23 @@ class MembershipQRPage extends StatelessWidget {
                     const SizedBox(height: 24),
 
 
-                    Row(
-                      children: const [
-                        Expanded(
-                          child: _WalletButton(
-                            icon: Icons.wallet,
-                            label: 'Add to Apple Wallet',
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: _WalletButton(
-                            icon: Icons.account_balance_wallet_outlined,
-                            label: 'Add to Google Wallet',
-                          ),
-                        ),
-                      ],
-                    ),
+                    // Row(
+                    //   children: const [
+                    //     Expanded(
+                    //       child: _WalletButton(
+                    //         icon: Icons.wallet,
+                    //         label: 'Add to Apple Wallet',
+                    //       ),
+                    //     ),
+                    //     SizedBox(width: 12),
+                    //     Expanded(
+                    //       child: _WalletButton(
+                    //         icon: Icons.account_balance_wallet_outlined,
+                    //         label: 'Add to Google Wallet',
+                    //       ),
+                    //     ),
+                    //   ],
+                    // ),
                   ],
                 ),
               ),
