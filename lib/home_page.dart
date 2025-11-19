@@ -262,6 +262,249 @@ class _HomePageState extends State<HomePage> {
 //   }
 // }
 //
+// Posters (Firestore)
+class _Poster {
+  final String id, title, imageUrl, subtitle, ctaText, deeplink;
+  final int priority;
+  _Poster({
+    required this.id,
+    required this.title,
+    required this.imageUrl,
+    required this.subtitle,
+    required this.ctaText,
+    required this.deeplink,
+    required this.priority,
+  });
+
+  factory _Poster.fromDoc(DocumentSnapshot d) {
+    final m = (d.data() as Map<String, dynamic>? ?? {});
+    return _Poster(
+      id: d.id,
+      title: (m['title'] ?? '').toString(),
+      imageUrl: (m['imageUrl'] ?? '').toString(),
+      subtitle: (m['subtitle'] ?? '').toString(),
+      ctaText: (m['ctaText'] ?? '').toString(),
+      deeplink: (m['deeplink'] ?? '').toString(),
+      priority:
+      (m['priority'] ?? 0) is num ? (m['priority'] as num).toInt() : 0,
+    );
+  }
+}
+
+class _PosterCarousel extends StatefulWidget {
+  final double height;
+  const _PosterCarousel({required this.height});
+
+  @override
+  State<_PosterCarousel> createState() => _PosterCarouselState();
+}
+
+class _PosterCarouselState extends State<_PosterCarousel> {
+  final _page = PageController(viewportFraction: 1.0);
+
+  Stream<List<_Poster>> _posters$() {
+    final now = Timestamp.now();
+
+    return FirebaseFirestore.instance
+        .collection('posters')
+        .orderBy('priority', descending: true)
+        .snapshots()
+        .map(
+          (s) {
+        return s.docs
+            .where((d) {
+          final m = (d.data() as Map<String, dynamic>? ?? {});
+          final Timestamp? startsAt = m['startsAt'];
+          final Timestamp? endsAt = m['endsAt'];
+          final afterStart =
+              (startsAt == null) || (startsAt.compareTo(now) <= 0);
+          final beforeEnd =
+              (endsAt == null) || (endsAt.compareTo(now) >= 0);
+          return afterStart && beforeEnd;
+        })
+            .map(_Poster.fromDoc)
+            .where((p) => p.title.isNotEmpty && p.imageUrl.isNotEmpty)
+            .toList();
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<_Poster>>(
+      stream: _posters$(),
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return SizedBox(
+            height: widget.height,
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        final list = snap.data!;
+        if (list.isEmpty) return const SizedBox.shrink();
+
+        return SizedBox(
+          height: widget.height,
+          width: double.infinity,
+          child: PageView.builder(
+            controller: _page,
+            padEnds: false,
+            itemCount: list.length,
+            itemBuilder: (_, i) => _PosterCard(item: list[i]),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PosterCard extends StatelessWidget {
+  final _Poster item;
+  const _PosterCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CachedNetworkImage(
+              imageUrl: item.imageUrl,
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Colors.black.withOpacity(.55),
+                    Colors.black.withOpacity(.05),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 12,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      if (item.subtitle.isNotEmpty)
+                        Text(
+                          item.subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(.85),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.black.withOpacity(.25),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () {
+                    // TODO: open item.deeplink or route
+                  },
+                  child: Text(item.ctaText.isEmpty ? 'Details' : item.ctaText),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Discover page
+class _DiscoverTab extends StatelessWidget {
+  const _DiscoverTab();
+  @override
+  Widget build(BuildContext context) {
+    final items = List.generate(
+      8,
+          (i) => ('Bonus ${100 + i * 25} pts', 'On selected items this week'),
+    );
+    return ListView.separated(
+      padding: const EdgeInsets.only(top: 8),
+      itemCount: items.length,
+      itemBuilder: (_, i) {
+        final item = items[i];
+        return ListTile(
+          leading: const Icon(Icons.local_offer_outlined),
+          title: Text(
+            item.$1,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text(item.$2),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () {},
+        );
+      },
+      separatorBuilder: (_, __) => const Divider(height: 1),
+    );
+  }
+}
+
+// Profile
+class _ProfileTab extends StatelessWidget {
+  const _ProfileTab();
+  @override
+  Widget build(BuildContext context) {
+    final u = FirebaseAuth.instance.currentUser;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        ListTile(
+          leading: CircleAvatar(
+            backgroundImage:
+            (u?.photoURL != null) ? NetworkImage(u!.photoURL!) : null,
+            child: (u?.photoURL == null) ? const Icon(Icons.person) : null,
+          ),
+          title: Text(u?.displayName ?? 'Member'),
+          subtitle: Text(u?.email ?? ''),
+        ),
+        const Divider(),
+        ListTile(
+          leading: const Icon(Icons.logout),
+          title: const Text('Sign out'),
+          onTap: () => FirebaseAuth.instance.signOut(),
+        ),
+      ],
+    );
+  }
+}
+
 // // Tier/Perk
 // class _Tier {
 //   final String name;
@@ -305,6 +548,7 @@ class _HomePageState extends State<HomePage> {
 // int _tierIndexByName(List<_Tier> tiers, String name) =>
 //     tiers.indexWhere((t) => t.name.toLowerCase() == name.toLowerCase());
 //
+
 // //Tier card
 // class _TierCard extends StatelessWidget {
 //   final String tier;
@@ -846,6 +1090,279 @@ class _HomePageState extends State<HomePage> {
 //   height: size,
 //   decoration: BoxDecoration(color: c, shape: BoxShape.circle),
 // );
+
+/ Benefits sheet
+class _BenefitsSheet extends StatefulWidget {
+  final int currentPoints;
+  final List<_Tier> tiers;
+  final List<_Perk> perks;
+  final Map<String, dynamic> discountsMap;
+  const _BenefitsSheet({
+    required this.currentPoints,
+    required this.tiers,
+    required this.perks,
+    required this.discountsMap,
+  });
+
+  @override
+  State<_BenefitsSheet> createState() => _BenefitsSheetState();
+}
+
+class _BenefitsSheetState extends State<_BenefitsSheet>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tab = TabController(length: 2, vsync: this);
+
+  @override
+  Widget build(BuildContext context) {
+    final curTier = _currentTier(widget.tiers, widget.currentPoints);
+    final curIdx = widget.tiers.indexOf(curTier);
+
+    final perkItems = widget.perks.map((p) {
+      final needIdx = _tierIndexByName(widget.tiers, p.minTierName);
+      final unlocked = (needIdx != -1 && needIdx <= curIdx);
+
+      int? pointsLeft;
+      if (!unlocked && needIdx != -1) {
+        pointsLeft = (widget.tiers[needIdx].min - widget.currentPoints)
+            .clamp(0, 1 << 31);
+      }
+
+      return {
+        'perk': p,
+        'unlocked': unlocked,
+        'pointsLeft': pointsLeft,
+      };
+    }).toList();
+
+    perkItems.sort((a, b) {
+      final ua = a['unlocked'] as bool;
+      final ub = b['unlocked'] as bool;
+      if (ua != ub) return ua ? -1 : 1;
+      final pa = (a['pointsLeft'] as int?) ?? 0;
+      final pb = (b['pointsLeft'] as int?) ?? 0;
+      return pa.compareTo(pb);
+    });
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.90,
+      minChildSize: 0.50,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, controller) => Column(
+        children: [
+          const SizedBox(height: 8),
+          Container(
+            width: 44,
+            height: 5,
+            decoration: BoxDecoration(
+              color: Colors.black12,
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Your Benefits',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          TabBar(
+            controller: _tab,
+            indicatorColor: tkoOrange,
+            labelColor: Colors.black,
+            tabs: const [Tab(text: 'Perks'), Tab(text: 'Discounts')],
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tab,
+              children: [
+                ListView.builder(
+                  controller: controller,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: perkItems.length,
+                  itemBuilder: (_, i) {
+                    final item = perkItems[i];
+                    final _Perk perk = item['perk'] as _Perk;
+                    final bool unlocked = item['unlocked'] as bool;
+                    final int? pointsLeft = item['pointsLeft'] as int?;
+                    return _PerkTile(
+                      perk: perk,
+                      unlocked: unlocked,
+                      pointsLeft: pointsLeft,
+                    );
+                  },
+                ),
+
+                // DISCOUNTS
+                ListView(
+                  controller: controller,
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    _DiscountsPanel(
+                      tierName: curTier.name,
+                      discountsMap: widget.discountsMap,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PerkTile extends StatelessWidget {
+  final _Perk perk;
+  final bool unlocked;
+  final int? pointsLeft;
+  const _PerkTile({
+    required this.perk,
+    required this.unlocked,
+    this.pointsLeft,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = unlocked ? Colors.green : Colors.orange;
+    final status = unlocked
+        ? 'Unlocked'
+        : (pointsLeft != null ? '$pointsLeft pts to unlock' : 'Locked');
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: c.withOpacity(.12),
+            ),
+            child: Icon(
+              unlocked ? Icons.verified_rounded : Icons.lock_clock_rounded,
+              color: c,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  perk.title,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                if (perk.description.isNotEmpty)
+                  Text(
+                    perk.description,
+                    style: TextStyle(
+                      color: Colors.black.withOpacity(.7),
+                    ),
+                  ),
+                Text(
+                  status,
+                  style: TextStyle(
+                    color: c,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right),
+        ],
+      ),
+    );
+  }
+}
+
+class _DiscountsPanel extends StatelessWidget {
+  final String tierName;
+  final Map<String, dynamic> discountsMap;
+  const _DiscountsPanel({
+    required this.tierName,
+    required this.discountsMap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tierDisc = Map<String, dynamic>.from(discountsMap[tierName] ?? {});
+    final rows = <Widget>[];
+
+    final entries = tierDisc.entries.toList()
+      ..sort((a, b) => a.key.toString().compareTo(b.key.toString()));
+
+    for (final e in entries) {
+      final key = e.key.toString();
+      final v = e.value;
+      final valueText = v is num ? v.toStringAsFixed(0) : v.toString();
+
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.check_circle_outline,
+                size: 18,
+                color: tkoBrown,
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Text(key)),
+              Text(
+                '$valueText%', // no minus sign
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+        ),
+      );
+      rows.add(const Divider(height: 1));
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$tierName Discounts',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          ...rows,
+        ],
+      ),
+    );
+  }
+}
 
 
 // BRAND BOTTOM NAV
