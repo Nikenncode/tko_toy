@@ -37,13 +37,33 @@ class OffersListScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       bottomNavigationBar: TkoBottomNav(
-        index: -1,
+        index: 2,
         onChanged: (newIndex) {
-          if (newIndex == 0) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const HomePage()),
-            );
+          switch (newIndex) {
+            case 0:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const HomePage()),
+              );
+              break;
+
+            case 1:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const HomePage(initialTab: 1),
+                ),
+              );
+              break;
+
+            case 3:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const HomePage(initialTab: 3),
+                ),
+              );
+              break;
           }
         },
       ),
@@ -114,9 +134,6 @@ class OffersListScreen extends StatelessWidget {
                 ),
               ),
               trailing: const Icon(Icons.chevron_right, color: Colors.black45),
-              onTap: () {
-                // TODO: navigate to detailed offer page
-              },
             ),
           );
         },

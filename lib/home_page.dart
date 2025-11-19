@@ -18,13 +18,22 @@ const tkoTeal   = Color(0xFF00B8A2);
 const tkoGold   = Color(0xFFFFD23F);
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final int initialTab;
+
+  const HomePage({super.key, this.initialTab = 0});
+
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  int index = 0;
+  late int index;
+
+  @override
+  void initState() {
+    super.initState();
+    index = widget.initialTab;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +78,16 @@ class _HomePageState extends State<HomePage> {
       body: SafeArea(child: pages[index]),
       bottomNavigationBar: TkoBottomNav(
         index: index,
-        onChanged: (i) => setState(() => index = i),
+        onChanged: (i) {
+          if (i == 2) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const OffersListScreen()),
+            );
+            return;
+          }
+          setState(() => index = i);
+        },
       ),
       backgroundColor: Colors.white,
     );
@@ -1410,11 +1428,13 @@ class TkoBottomNav extends StatelessWidget {
               icon: Icons.auto_awesome_outlined,
               activeIcon: Icons.auto_awesome,
               label: 'Discover',
-              isActive: false,  // discover is NOT a tab
+              isActive: index == 2,
               onTap: () {
-                Navigator.push(
+                Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (_) => const OffersListScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const OffersListScreen(),
+                  ),
                 );
               },
             ),
