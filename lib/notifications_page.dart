@@ -7,7 +7,20 @@ class NotificationsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+
+    // 🔹 If no logged-in user, show simple message instead of crash
+    if (uid == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Notifications'),
+          centerTitle: true,
+        ),
+        body: const Center(
+          child: Text('Please sign in to see notifications.'),
+        ),
+      );
+    }
 
     final query = FirebaseFirestore.instance
         .collection('users')
@@ -26,6 +39,9 @@ class NotificationsPage extends StatelessWidget {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
+          if (snap.hasError) {
+            return const Center(child: Text('Failed to load notifications'));
+          }
           if (!snap.hasData || snap.data!.docs.isEmpty) {
             return const Center(child: Text('No notifications yet'));
           }
@@ -37,9 +53,11 @@ class NotificationsPage extends StatelessWidget {
             itemCount: docs.length,
             separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (_, i) {
-              final data = docs[i].data() as Map<String, dynamic>;
+              final raw = docs[i].data();
+              final data = raw is Map<String, dynamic> ? raw : <String, dynamic>{};
+
               final title = (data['title'] ?? '') as String;
-              final body = (data['body'] ?? '') as String;
+              final body  = (data['body']  ?? '') as String;
 
               return Card(
                 shape: RoundedRectangleBorder(
@@ -47,10 +65,12 @@ class NotificationsPage extends StatelessWidget {
                 ),
                 child: ListTile(
                   title: Text(
-                    title,
+                    title.isEmpty ? 'New update' : title,
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
-                  subtitle: Text(body),
+                  subtitle: Text(
+                    body.isEmpty ? 'You have a new notification.' : body,
+                  ),
                 ),
               );
             },
