@@ -9,7 +9,6 @@ class NotificationsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
-    // 🔹 If no logged-in user, show simple message instead of crash
     if (uid == null) {
       return Scaffold(
         appBar: AppBar(

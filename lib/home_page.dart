@@ -1,4 +1,3 @@
-// lib/home_page.dart
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -21,11 +20,6 @@ const tkoBrown  = Color(0xFF6A3B1A);
 const tkoTeal   = Color(0xFF00B8A2);
 const tkoGold   = Color(0xFFFFD23F);
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  // 🔹 init local notifications
-  await NotificationService.init();
-}
 class HomePage extends StatefulWidget {
   final int initialTab;
 
@@ -75,7 +69,7 @@ class _HomePageState extends State<HomePage> {
       }
 
       if (notif != null) {
-        await NotificationService.showBasic(     // <-- ✅ correct
+        await NotificationService.showBasic(
           title: notif.title ?? 'New update',
           body: notif.body ?? '',
         );

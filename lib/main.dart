@@ -3,28 +3,33 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-
 import 'firebase_options.dart';
 import 'home_page.dart';
 import 'login_page.dart';
 import 'login_signup_page.dart';
-
+import 'notification_service.dart';   // 👈 ADD THIS
 
 const tkoOrange = Color(0xFFFF6A00);
 const tkoCream  = Color(0xFFF7F2EC);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+
+  await NotificationService.init();   // 👈 ADD THIS
+
   runApp(const TkoApp());
 }
 
 class TkoApp extends StatelessWidget {
   const TkoApp({super.key});
 
-  // Toggle which login UI you want to use
+
   static const bool useTabbedLogin = true;
 
   @override
@@ -56,13 +61,11 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snap) {
-
         if (snap.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
-
 
         if (snap.data != null) {
           return const HomePage();
