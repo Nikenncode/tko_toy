@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:simple_icons/simple_icons.dart';
+import 'package:tko_toy/profile_page.dart';
 import 'membership_qr_page.dart';
 import 'discord_page.dart';
 import 'products_page.dart';
@@ -41,7 +42,7 @@ class _HomePageState extends State<HomePage> {
       const _HomeTab(),
       const MembershipQRPage(),
       const _DiscoverTab(),
-      const _ProfileTab(),
+      const ProfileCardTab(),
     ];
 
     return Scaffold(
