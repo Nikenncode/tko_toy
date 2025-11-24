@@ -1,76 +1,49 @@
-// lib/discover_page.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import 'home_page.dart';
 
 class OffersListScreen extends StatelessWidget {
   const OffersListScreen({super.key});
 
-  /// Shared offers data – used by both Discover page and Notifications page
-  static const List<Map<String, dynamic>> sharedOffers = [
-    {
-      "title": "Bonus 150 Points",
-      "subtitle": "On all Beyblade X starter packs",
-      "icon": Icons.card_giftcard,
-      "color": Colors.orange,
-    },
-    {
-      "title": "Double Points Day!",
-      "subtitle": "Earn 2x rewards on all purchases this Wednesday",
-      "icon": Icons.local_fire_department_rounded,
-      "color": Colors.redAccent,
-    },
-    {
-      "title": "5% Off Supplies",
-      "subtitle": "Exclusive discount for Loyalty Members",
-      "icon": Icons.discount_outlined,
-      "color": Colors.green,
-    },
-    {
-      "title": "Free Poster",
-      "subtitle":
-      "Get a free Beyblade poster with every purchase over \$50",
-      "icon": Icons.celebration,
-      "color": Colors.blueAccent,
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
-    // Use sharedOffers here
-    final offers = OffersListScreen.sharedOffers;
+    final offers = [
+      {
+        "title": "Bonus 150 Points",
+        "subtitle": "On all Beyblade X starter packs",
+        "icon": Icons.card_giftcard,
+        "color": Colors.orange,
+      },
+      {
+        "title": "Double Points Day!",
+        "subtitle": "Earn 2x rewards on all purchases this Wednesday",
+        "icon": Icons.local_fire_department_rounded,
+        "color": Colors.redAccent,
+      },
+      {
+        "title": "5% Off Supplies",
+        "subtitle": "Exclusive discount for Loyalty Members",
+        "icon": Icons.discount_outlined,
+        "color": Colors.green,
+      },
+      {
+        "title": "Free Poster",
+        "subtitle": "Get a free Beyblade poster with every purchase over \$50",
+        "icon": Icons.celebration,
+        "color": Colors.blueAccent,
+      },
+    ];
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
       bottomNavigationBar: TkoBottomNav(
-        index: 2,
+        index: -1,
         onChanged: (newIndex) {
-          switch (newIndex) {
-            case 0:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const HomePage()),
-              );
-              break;
-
-            case 1:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const HomePage(initialTab: 1),
-                ),
-              );
-              break;
-
-            case 3:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const HomePage(initialTab: 3),
-                ),
-              );
-              break;
+          if (newIndex == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const HomePage()),
+            );
           }
         },
       ),
@@ -91,6 +64,7 @@ class OffersListScreen extends StatelessWidget {
           ),
         ),
       ),
+
       body: ListView.separated(
         padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
         itemCount: offers.length,
@@ -117,8 +91,7 @@ class OffersListScreen extends StatelessWidget {
               ),
               leading: CircleAvatar(
                 radius: 26,
-                backgroundColor:
-                (offer["color"] as Color).withOpacity(0.15),
+                backgroundColor: (offer["color"] as Color).withOpacity(0.15),
                 child: Icon(
                   offer["icon"] as IconData,
                   color: offer["color"] as Color,
@@ -140,12 +113,9 @@ class OffersListScreen extends StatelessWidget {
                   color: Colors.black54,
                 ),
               ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                color: Colors.black45,
-              ),
+              trailing: const Icon(Icons.chevron_right, color: Colors.black45),
               onTap: () {
-                // later: go to offer details page if you want
+                // TODO: navigate to detailed offer page
               },
             ),
           );

@@ -1,18 +1,18 @@
+// lib/home_page.dart
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:simple_icons/simple_icons.dart';
+import 'package:tko_toy/profile_page.dart';
 import 'membership_qr_page.dart';
 import 'discord_page.dart';
 import 'products_page.dart';
 import 'discover_page.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'notification_service.dart';
 import 'notifications_page.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';   // <-- add
-import 'notification_service.dart';                            // <-- add
-
-
 
 // Brand colors (TKO)
 const tkoOrange = Color(0xFFFF6A00);
@@ -21,28 +21,15 @@ const tkoBrown  = Color(0xFF6A3B1A);
 const tkoTeal   = Color(0xFF00B8A2);
 const tkoGold   = Color(0xFFFFD23F);
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 🔹 init local notifications
   await NotificationService.init();
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: const HomePage(),
-    );
-  }
 }
 class HomePage extends StatefulWidget {
   final int initialTab;
 
   const HomePage({super.key, this.initialTab = 0});
-
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -51,14 +38,12 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late int index;
 
-
   @override
   void initState() {
     super.initState();
     index = widget.initialTab;
     _initPushNotifications();
   }
-
   Future<void> _initPushNotifications() async {
     final messaging = FirebaseMessaging.instance;
 
@@ -97,14 +82,13 @@ class _HomePageState extends State<HomePage> {
       }
     });
   }
-
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
       const _HomeTab(),
       const MembershipQRPage(),
       const _DiscoverTab(),
-      const _ProfileTab(),
+      const ProfileCardTab(),
     ];
 
     return Scaffold(
@@ -142,6 +126,7 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.account_circle_outlined, color: Colors.black87),
           ),
         ],
+
       ),
       body: SafeArea(child: pages[index]),
       bottomNavigationBar: TkoBottomNav(
@@ -154,7 +139,7 @@ class _HomePageState extends State<HomePage> {
             );
             return;
           }
-          setState(() => index = i);
+          setState(() => index = i.clamp(0,3));
         },
       ),
       backgroundColor: Colors.white,
