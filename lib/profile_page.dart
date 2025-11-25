@@ -1,6 +1,8 @@
 // lib/profile_page.dart
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,14 +13,16 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// TKO brand colors (same values as home_page.dart)
+import 'settings_page.dart';
+
+
 const tkoOrange = Color(0xFFFF6A00);
 const tkoCream = Color(0xFFF7F2EC);
 const tkoBrown = Color(0xFF6A3B1A);
 const tkoTeal = Color(0xFF00B8A2);
 const tkoGold = Color(0xFFFFD23F);
 
-/// Use this widget as the "Profile" tab body inside HomePage.
+
 class ProfileCardTab extends StatefulWidget {
   const ProfileCardTab({super.key});
 
@@ -30,11 +34,16 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     with SingleTickerProviderStateMixin {
   bool _showFront = true;
 
+  void _toggleSide() {
+    setState(() {
+      _showFront = !_showFront;
+    });
+  }
+
   // THEME INDEXES (front + back)
   int _selectedFrontThemeIndex = 0;
   int _selectedBackThemeIndex = 0;
 
-  /// Dark, premium front themes (keep text white)
   final List<List<Color>> frontThemes = const [
     // 0 – original brown
     [Color(0xFF3B2A1A), Color(0xFF15100C)],
@@ -76,6 +85,7 @@ class _ProfileCardTabState extends State<ProfileCardTab>
   String? _xHandle;
 
   String? _avatarUrl;
+  Uint8List? _avatarBytes;
   File? _avatarFile;
 
   // Editing controllers
@@ -120,6 +130,7 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     super.dispose();
   }
 
+  // ---------- LOAD ----------
 
   void _loadFromAuth() {
     final u = FirebaseAuth.instance.currentUser;
@@ -134,8 +145,9 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     final u = FirebaseAuth.instance.currentUser;
     if (u == null) return;
 
-    final doc =
-    await FirebaseFirestore.instance.doc('users/${u.uid}/profile/card').get();
+    final doc = await FirebaseFirestore.instance
+        .doc('users/${u.uid}/profile/card')
+        .get();
 
     if (!doc.exists) return;
 
@@ -148,7 +160,12 @@ class _ProfileCardTabState extends State<ProfileCardTab>
       _instagram = data['instagram'];
       _discord = data['discord'];
       _xHandle = data['xHandle'];
-      _avatarUrl = data['avatarUrl'] ?? _avatarUrl;
+
+      // avatar base64
+      final avatarBase64 = data['avatarBase64'];
+      if (avatarBase64 is String && avatarBase64.isNotEmpty) {
+        _avatarBytes = base64Decode(avatarBase64);
+      }
 
       final frontIdx = data['frontThemeIndex'];
       final backIdx = data['backThemeIndex'];
@@ -176,27 +193,52 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     );
   }
 
-  // ----------------- UTILS -----------------
+  // ---------- AVATAR ----------
 
-  String _initialsFromName(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty) return 'P';
-    if (parts.length == 1) {
-      return parts.first.substring(0, 1).toUpperCase();
-    }
-    final first = parts.first.substring(0, 1).toUpperCase();
-    final last = parts.last.substring(0, 1).toUpperCase();
-    return '$first$last';
+  Future<void> _saveAvatarToFirestore(Uint8List bytes) async {
+    final u = FirebaseAuth.instance.currentUser;
+    if (u == null) return;
+
+    final base64Str = base64Encode(bytes);
+
+    await FirebaseFirestore.instance.collection('users').doc(u.uid).set(
+      {
+        'avatarBase64': base64Str,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+
+    await FirebaseFirestore.instance
+        .doc('users/${u.uid}/profile/card')
+        .set(
+      {
+        'avatarBase64': base64Str,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
   }
 
   Future<void> _pickAvatar() async {
-    final xFile =
-    await _picker.pickImage(source: ImageSource.gallery, maxWidth: 1024);
+    final xFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 600,  // keep small for Firestore
+    );
     if (xFile == null) return;
+
+    final file = File(xFile.path);
+    final bytes = await file.readAsBytes();
+
     setState(() {
-      _avatarFile = File(xFile.path);
+      _avatarFile = file;   // local preview
+      _avatarBytes = bytes; // for display after reload
     });
+
+    await _saveAvatarToFirestore(bytes);
   }
+
+  // ---------- THEMES ----------
 
   void _cycleFrontTheme() {
     setState(() {
@@ -214,6 +256,7 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     _saveThemeIndexes();
   }
 
+  // ---------- EDIT SHEET ----------
 
   void _openEditSheet() {
     final name = _displayName ?? '';
@@ -281,6 +324,11 @@ class _ProfileCardTabState extends State<ProfileCardTab>
                               image: FileImage(_avatarFile!),
                               fit: BoxFit.cover,
                             )
+                                : (_avatarBytes != null)
+                                ? DecorationImage(
+                              image: MemoryImage(_avatarBytes!),
+                              fit: BoxFit.cover,
+                            )
                                 : (_avatarUrl != null &&
                                 _avatarUrl!.trim().isNotEmpty)
                                 ? DecorationImage(
@@ -290,6 +338,7 @@ class _ProfileCardTabState extends State<ProfileCardTab>
                                 : null,
                           ),
                           child: (_avatarFile == null &&
+                              _avatarBytes == null &&
                               (_avatarUrl == null ||
                                   _avatarUrl!.trim().isEmpty))
                               ? const Icon(Icons.camera_alt_outlined)
@@ -382,8 +431,9 @@ class _ProfileCardTabState extends State<ProfileCardTab>
                         width: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor:
-                          AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                         ),
                       )
                           : const Text('Save'),
@@ -403,7 +453,7 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     if (u == null) return;
     setState(() => _saving = true);
 
-    final name = _nameCtrl.text.trim();
+    final typedName = _nameCtrl.text.trim();
     final bio = _bioCtrl.text.trim();
     final funFact = _funFactCtrl.text.trim();
     final birthday = _birthdayCtrl.text.trim();
@@ -411,8 +461,13 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     final discord = _discordCtrl.text.trim();
     final x = _xCtrl.text.trim();
 
+    // figure out final display name
+    final fallback =
+        _displayName ?? u.displayName ?? u.email?.split('@').first ?? 'Player';
+    final newDisplayName = typedName.isEmpty ? fallback : typedName;
+
     setState(() {
-      _displayName = name.isEmpty ? _displayName : name;
+      _displayName = newDisplayName;
       _bio = bio.isEmpty ? null : bio;
       _funFact = funFact.isEmpty ? null : funFact;
       _birthday = birthday.isEmpty ? null : birthday;
@@ -421,37 +476,53 @@ class _ProfileCardTabState extends State<ProfileCardTab>
       _xHandle = x.isEmpty ? null : x;
     });
 
-    await FirebaseFirestore.instance
-        .doc('users/${u.uid}/profile/card')
-        .set(
-      {
-        'name': _displayName,
-        'bio': _bio,
-        'funFact': _funFact,
-        'birthday': _birthday,
-        'instagram': _instagram,
-        'discord': _discord,
-        'xHandle': _xHandle,
-        'avatarUrl': _avatarUrl,
-        'frontThemeIndex': _selectedFrontThemeIndex,
-        'backThemeIndex': _selectedBackThemeIndex,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    try {
+      // update Firebase Auth displayName
+      await u.updateDisplayName(newDisplayName);
 
-    if (!mounted) return;
-    setState(() => _saving = false);
-    Navigator.of(context).maybePop();
+      // avatar base64 (if available)
+      String? avatarBase64;
+      if (_avatarBytes != null) {
+        avatarBase64 = base64Encode(_avatarBytes!);
+      }
+
+      // main users/{uid} doc
+      await FirebaseFirestore.instance.collection('users').doc(u.uid).set(
+        {
+          'displayName': newDisplayName,
+          if (avatarBase64 != null) 'avatarBase64': avatarBase64,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+
+      // profile card doc
+      await FirebaseFirestore.instance
+          .doc('users/${u.uid}/profile/card')
+          .set(
+        {
+          'name': newDisplayName,
+          'bio': _bio,
+          'funFact': _funFact,
+          'birthday': _birthday,
+          'instagram': _instagram,
+          'discord': _discord,
+          'xHandle': _xHandle,
+          if (avatarBase64 != null) 'avatarBase64': avatarBase64,
+          'frontThemeIndex': _selectedFrontThemeIndex,
+          'backThemeIndex': _selectedBackThemeIndex,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      Navigator.of(context).maybePop();
+    }
   }
 
-  void _toggleSide() {
-    setState(() {
-      _showFront = !_showFront;
-    });
-  }
-
-  // ----------------- LINK HELPERS -----------------
+  // ---------- LINKS ----------
 
   String? _handleToUrl(String? handle, String base) {
     if (handle == null || handle.trim().isEmpty) return null;
@@ -485,6 +556,7 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     }
   }
 
+  // ---------- SHARE CARD ----------
 
   Future<void> _captureAndShareCard() async {
     try {
@@ -499,7 +571,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
         return;
       }
 
-      // ensure painted
       if (boundary.debugNeedsPaint) {
         await Future.delayed(const Duration(milliseconds: 20));
       }
@@ -533,6 +604,19 @@ class _ProfileCardTabState extends State<ProfileCardTab>
         SnackBar(content: Text('Could not share card: $e')),
       );
     }
+  }
+
+  // ---------- BUILD ----------
+
+  String _initialsFromName(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty) return 'P';
+    if (parts.length == 1) {
+      return parts.first.substring(0, 1).toUpperCase();
+    }
+    final first = parts.first.substring(0, 1).toUpperCase();
+    final last = parts.last.substring(0, 1).toUpperCase();
+    return '$first$last';
   }
 
   @override
@@ -598,8 +682,13 @@ class _ProfileCardTabState extends State<ProfileCardTab>
                     size: 20,
                     color: Colors.white,
                   ),
-                  onPressed: () {
-                    // TODO: settings page
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SettingsPage()),
+                    );
+                    _loadFromAuth();
+                    await _loadFromFirestore();
                   },
                 ),
                 IconButton(
@@ -741,8 +830,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     );
   }
 
-
-
   Widget _buildFrontCard(
       BuildContext context,
       String? instaUrl,
@@ -840,22 +927,24 @@ class _ProfileCardTabState extends State<ProfileCardTab>
                   children: [
                     if (_avatarFile != null)
                       Image.file(_avatarFile!, fit: BoxFit.cover)
+                    else if (_avatarBytes != null)
+                      Image.memory(_avatarBytes!, fit: BoxFit.cover)
                     else if ((_avatarUrl ?? '').isNotEmpty)
-                      Image.network(_avatarUrl!, fit: BoxFit.cover)
-                    else
-                      Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              tkoTeal,
-                              Color(0xFF3B82F6),
-                              tkoOrange,
-                            ],
+                        Image.network(_avatarUrl!, fit: BoxFit.cover)
+                      else
+                        Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                tkoTeal,
+                                Color(0xFF3B82F6),
+                                tkoOrange,
+                              ],
+                            ),
                           ),
                         ),
-                      ),
                     Positioned.fill(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
@@ -938,9 +1027,8 @@ class _ProfileCardTabState extends State<ProfileCardTab>
                 ),
                 _PillIconText(
                   icon: Icons.alternate_email_outlined,
-                  label: _xHandle?.isNotEmpty == true
-                      ? _xHandle!
-                      : 'X / Twitter',
+                  label:
+                  _xHandle?.isNotEmpty == true ? _xHandle! : 'X / Twitter',
                   onTap: xUrl == null ? null : () => _launchExternal(xUrl),
                 ),
               ],
@@ -1046,6 +1134,7 @@ class _ProfileCardTabState extends State<ProfileCardTab>
   }
 }
 
+// ---------- SMALL WIDGETS / PAINTERS ----------
 
 class _InfoLine extends StatelessWidget {
   final IconData icon;
