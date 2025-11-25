@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'supplies_grid_page.dart';
+import 'home_page.dart';
 
 class _Item {
   final String name;
@@ -147,6 +148,36 @@ class SuppliesPage extends StatelessWidget {
               ),
             ),
           );
+        },
+      ),
+      bottomNavigationBar: TkoBottomNav(
+        index: -1,
+        onChanged: (newIndex) {
+          switch (newIndex) {
+            case 0:
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const HomePage()),
+                    (route) => false,
+              );
+              break;
+
+            case 1:
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const HomePage(initialTab: 1)),
+                    (route) => false,
+              );
+              break;
+
+            case 3:
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const HomePage(initialTab: 3)),
+                    (route) => false,
+              );
+              break;
+          }
         },
       ),
     );

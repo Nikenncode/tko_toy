@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
+import 'home_page.dart';
 
 class ProductDetailsPage extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -349,6 +350,36 @@ class _SupplyDetailsPageState extends State<ProductDetailsPage> {
             ),
           ],
         ),
+      ),
+      bottomNavigationBar: TkoBottomNav(
+        index: -1,
+        onChanged: (newIndex) {
+          switch (newIndex) {
+            case 0:
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const HomePage()),
+                    (route) => false,
+              );
+              break;
+
+            case 1:
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const HomePage(initialTab: 1)),
+                    (route) => false,
+              );
+              break;
+
+            case 3:
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const HomePage(initialTab: 3)),
+                    (route) => false,
+              );
+              break;
+          }
+        },
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'Product_description.dart';
+import 'home_page.dart';
 
 class CardsGridPage extends StatefulWidget {
   final String selectedTab;
@@ -47,27 +48,23 @@ class _CardsGridPageState extends State<CardsGridPage>
   String? _getFirebaseCollection() {
     final t = activeTab.toLowerCase().trim();
 
-    if (t.contains("one piece") && t.contains("singles")) {
-      return "one_piece_singles";
-    }
-    if (t.contains("one piece") && t.contains("sealed")) {
-      return "one_piece_sealed";
-    }
-    if (t.contains("pokemon") && t.contains("singles")) {
-      return "pokemon_singles";
-    }
-    if (t.contains("pokemon") && t.contains("japanese")) {
-      return "pokemon_japanese_sealed";
-    }
-    if (t.contains("pokemon") && t.contains("sealed")) {
-      return "pokemon_sealed";
-    }
+    if (t.contains("one piece") && t.contains("singles")) return "one_piece_singles";
+    if (t.contains("one piece") && t.contains("sealed")) return "one_piece_sealed";
+
+    if (t.contains("pokemon") && t.contains("singles")) return "pokemon_singles";
+    if (t.contains("pokemon") && t.contains("japanese")) return "pokemon_japanese_sealed";
+    if (t.contains("pokemon") && t.contains("sealed")) return "pokemon_sealed";
+
+    if (t.contains("magic") && t.contains("singles")) return "mtg_singles";
+    if (t.contains("magic") && t.contains("sealed")) return "mtg_sealed";
+
+    if (t.contains("yu-gi-oh") && t.contains("singles")) return "yu_gi_oh_singles";
+    if (t.contains("yu-gi-oh") && t.contains("sealed")) return "yu_gi_oh_sealed";
+
+    if (t.contains("riftbound") && t.contains("singles")) return "riftbound_singles";
+    if (t.contains("riftbound") && t.contains("sealed")) return "riftbound_sealed";
 
     return null;
-  }
-
-  List<String> _getDummyProducts(String tab) {
-    return List.generate(10, (i) => "$tab Product $i");
   }
 
   num? _getPrice(List? variants) {
@@ -82,13 +79,37 @@ class _CardsGridPageState extends State<CardsGridPage>
     return null;
   }
 
+  bool _isValidUrl(String? url) {
+    if (url == null || url.isEmpty) return false;
+    if (!url.startsWith("http")) return false;
+    return true;
+  }
+
+  Widget _noImageBox() {
+    return Container(
+      height: 150,
+      width: double.infinity,
+      color: Colors.white,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.image_not_supported, size: 40, color: Colors.grey.shade400),
+            const SizedBox(height: 4),
+            Text("No image",
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final firebaseCollection = _getFirebaseCollection();
 
     return Scaffold(
       backgroundColor: Colors.white,
-
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.4,
@@ -118,64 +139,44 @@ class _CardsGridPageState extends State<CardsGridPage>
 
           Expanded(
             child: firebaseCollection == null
-                ? _buildDummyGrid()
+                ? const Center(child: Text("No category found"))
                 : _buildFirebaseGrid(firebaseCollection),
           ),
         ],
       ),
-    );
-  }
+      bottomNavigationBar: TkoBottomNav(
+        index: -1,
+        onChanged: (newIndex) {
+          switch (newIndex) {
+            case 0:
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const HomePage()),
+                    (route) => false,
+              );
+              break;
 
-  //Dummy Grid
-  Widget _buildDummyGrid() {
-    final products = _getDummyProducts(activeTab);
+            case 1:
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const HomePage(initialTab: 1)),
+                    (route) => false,
+              );
+              break;
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 18,
-        crossAxisSpacing: 14,
-        childAspectRatio: 0.67,
+            case 3:
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const HomePage(initialTab: 3)),
+                    (route) => false,
+              );
+              break;
+          }
+        },
       ),
-      itemCount: products.length,
-      itemBuilder: (context, index) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  "https://picsum.photos/500?random=$index",
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              products[index],
-              style: GoogleFonts.poppins(
-                  fontSize: 15, fontWeight: FontWeight.w600),
-            ),
-            Text(
-              activeTab,
-              style: GoogleFonts.poppins(
-                  fontSize: 13, color: Colors.grey),
-            ),
-            Text(
-              "\$${(index + 1) * 10}",
-              style: GoogleFonts.poppins(
-                  fontSize: 15, fontWeight: FontWeight.bold),
-            ),
-          ],
-        );
-      },
     );
   }
 
-  //Firebase Grid
   Widget _buildFirebaseGrid(String collection) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection(collection).snapshots(),
@@ -202,13 +203,9 @@ class _CardsGridPageState extends State<CardsGridPage>
             final data = docs[index].data() as Map<String, dynamic>;
 
             final title = data['title'] ?? "";
-            final variants = (data['variants'] as List?) ?? [];
-            final price = _getPrice(variants);
-
-            final images =
-                (data['images'] as List?)?.whereType<String>().toList() ?? [];
-            final imageUrl =
-            images.isNotEmpty ? images.first : null;
+            final price = _getPrice(data['variants']);
+            final images = (data['images'] as List?)?.whereType<String>().toList() ?? [];
+            final imageUrl = images.isNotEmpty ? images.first : null;
 
             bool isLiked = false;
 
@@ -218,10 +215,7 @@ class _CardsGridPageState extends State<CardsGridPage>
                   context,
                   MaterialPageRoute(
                     builder: (_) => ProductDetailsPage(
-                      product: {
-                        ...data,
-                        "parentTab": activeTab,
-                      },
+                      product: {...data, "parentTab": activeTab},
                     ),
                   ),
                 );
@@ -232,8 +226,7 @@ class _CardsGridPageState extends State<CardsGridPage>
                   return Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                          color: Colors.grey.shade300, width: 1),
+                      border: Border.all(color: Colors.grey.shade300, width: 1),
                       color: Colors.white,
                     ),
                     child: Column(
@@ -250,30 +243,13 @@ class _CardsGridPageState extends State<CardsGridPage>
                                 height: 150,
                                 width: double.infinity,
                                 color: Colors.white,
-                                child: imageUrl == null
-                                    ? Center(
-                                  child: Column(
-                                    mainAxisAlignment:
-                                    MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.image_not_supported,
-                                          size: 40,
-                                          color: Colors.grey.shade400),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        "No image",
-                                        style: TextStyle(
-                                            color:
-                                            Colors.grey.shade500,
-                                            fontSize: 12),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                                    : Image.network(
-                                  imageUrl,
+                                child: _isValidUrl(imageUrl)
+                                    ? Image.network(
+                                  imageUrl!,
                                   fit: BoxFit.contain,
-                                ),
+                                  errorBuilder: (_, __, ___) => _noImageBox(),
+                                )
+                                    : _noImageBox(),
                               ),
                             ),
 
@@ -282,9 +258,7 @@ class _CardsGridPageState extends State<CardsGridPage>
                               right: 10,
                               child: GestureDetector(
                                 onTap: () {
-                                  setState(() {
-                                    isLiked = !isLiked;
-                                  });
+                                  setState(() => isLiked = !isLiked);
                                 },
                                 child: Container(
                                   height: 34,
@@ -301,12 +275,9 @@ class _CardsGridPageState extends State<CardsGridPage>
                                     ],
                                   ),
                                   child: Icon(
-                                    isLiked
-                                        ? Icons.favorite
-                                        : Icons.favorite_border,
+                                    isLiked ? Icons.favorite : Icons.favorite_border,
                                     size: 20,
-                                    color:
-                                    isLiked ? Colors.red : Colors.black,
+                                    color: isLiked ? Colors.red : Colors.black,
                                   ),
                                 ),
                               ),
@@ -321,12 +292,9 @@ class _CardsGridPageState extends State<CardsGridPage>
                         ),
 
                         Padding(
-                          padding:
-                          const EdgeInsets.fromLTRB(10, 10, 10, 0),
+                          padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
                           child: Text(
-                            price != null
-                                ? "\$${price.toStringAsFixed(2)}"
-                                : "",
+                            price != null ? "\$${price.toStringAsFixed(2)}" : "",
                             style: GoogleFonts.poppins(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -337,8 +305,7 @@ class _CardsGridPageState extends State<CardsGridPage>
                         const SizedBox(height: 6),
 
                         Padding(
-                          padding:
-                          const EdgeInsets.symmetric(horizontal: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
                           child: Text(
                             title,
                             maxLines: 3,

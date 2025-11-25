@@ -7,7 +7,7 @@ import 'firebase_options.dart';
 import 'home_page.dart';
 import 'login_page.dart';
 import 'login_signup_page.dart';
-import 'notification_service.dart';   // 👈 ADD THIS
+import 'notification_service.dart';
 
 const tkoOrange = Color(0xFFFF6A00);
 const tkoCream  = Color(0xFFF7F2EC);
@@ -21,7 +21,7 @@ Future<void> main() async {
   );
 
 
-  await NotificationService.init();   // 👈 ADD THIS
+  await NotificationService.init();
 
   runApp(const TkoApp());
 }

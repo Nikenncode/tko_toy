@@ -37,13 +37,32 @@ class OffersListScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       bottomNavigationBar: TkoBottomNav(
-        index: -1,
+        index: 2,
         onChanged: (newIndex) {
-          if (newIndex == 0) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const HomePage()),
-            );
+          switch (newIndex) {
+            case 0:
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const HomePage()),
+                    (route) => false,
+              );
+              break;
+
+            case 1:
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const HomePage(initialTab: 1)),
+                    (route) => false,
+              );
+              break;
+
+            case 3:
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const HomePage(initialTab: 3)),
+                    (route) => false,
+              );
+              break;
           }
         },
       ),
