@@ -8,7 +8,6 @@ import 'cart_service.dart';
 import 'home_page.dart';
 import 'order_summary_page.dart';
 
-
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
 
@@ -19,10 +18,22 @@ class CartPage extends StatelessWidget {
     if (user == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('My Cart'),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          title: Text(
+            'My Cart',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w700,
+              color: tkoBrown,
+            ),
+          ),
+          centerTitle: true,
         ),
-        body: const Center(
-          child: Text('Please log in to see your cart.'),
+        body: Center(
+          child: Text(
+            'Please log in to see your cart.',
+            style: GoogleFonts.poppins(),
+          ),
         ),
       );
     }
@@ -68,7 +79,7 @@ class CartPage extends StatelessWidget {
             children: [
               const SizedBox(height: 12),
 
-              // Hint / summary
+              // small summary line
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Align(
@@ -85,7 +96,7 @@ class CartPage extends StatelessWidget {
 
               const SizedBox(height: 8),
 
-              // CART LIST
+              // cart list
               Expanded(
                 child: ListView.separated(
                   padding:
@@ -115,7 +126,7 @@ class CartPage extends StatelessWidget {
                 ),
               ),
 
-              // TOTAL + CHECKOUT
+              // total + checkout
               _CartTotalBar(total: total),
             ],
           );
@@ -166,7 +177,7 @@ class _CartItemCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // IMAGE
+            // image
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Container(
@@ -192,12 +203,12 @@ class _CartItemCard extends StatelessWidget {
 
             const SizedBox(width: 12),
 
-            // NAME, CATEGORY, QTY, PRICE
+            // text + qty
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // NAME
+                  // name
                   Text(
                     name,
                     maxLines: 2,
@@ -210,7 +221,7 @@ class _CartItemCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
 
-                  // CATEGORY
+                  // category
                   if (category.isNotEmpty)
                     Text(
                       category,
@@ -222,11 +233,11 @@ class _CartItemCard extends StatelessWidget {
 
                   const SizedBox(height: 6),
 
-                  // PRICE + QTY ROW
+                  // price row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // price x qty
+                      // price + line total
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -248,13 +259,15 @@ class _CartItemCard extends StatelessWidget {
                         ],
                       ),
 
-                      // QTY + ACTIONS
+                      // qty + actions
                       Row(
                         children: [
-                          // QTY CHIP
+                          // qty chip
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(999),
                               color: tkoCream,
@@ -270,14 +283,17 @@ class _CartItemCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 6),
 
-                          // + BUTTON (add one more)
+                          // add one more
                           IconButton(
                             visualDensity: VisualDensity.compact,
-                            icon: const Icon(Icons.add_circle_outline, size: 20),
+                            icon: const Icon(
+                              Icons.add_circle_outline,
+                              size: 20,
+                            ),
                             onPressed: () async {
                               try {
                                 await CartService.instance.addToCart(
-                                  productId: docId,
+                                  productId: fullData['productId'] ?? docId,
                                   name: name,
                                   price: price,
                                   imageUrl: imageUrl,
@@ -291,10 +307,13 @@ class _CartItemCard extends StatelessWidget {
                             },
                           ),
 
-                          // DELETE
+                          // delete item
                           IconButton(
                             visualDensity: VisualDensity.compact,
-                            icon: const Icon(Icons.delete_outline, size: 20),
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              size: 20,
+                            ),
                             onPressed: () async {
                               await CartService.instance.removeFromCart(docId);
                               // ignore: use_build_context_synchronously
@@ -327,8 +346,7 @@ class _CartTotalBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: const BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -343,7 +361,7 @@ class _CartTotalBar extends StatelessWidget {
         top: false,
         child: Row(
           children: [
-            // TOTAL TEXT
+            // total text
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -368,7 +386,7 @@ class _CartTotalBar extends StatelessWidget {
               ),
             ),
 
-            // CHECKOUT BUTTON
+            // checkout button
             SizedBox(
               height: 44,
               child: ElevatedButton(
@@ -380,12 +398,10 @@ class _CartTotalBar extends StatelessWidget {
                     ),
                   );
                 },
-
                 style: ElevatedButton.styleFrom(
                   backgroundColor: tkoOrange,
                   foregroundColor: Colors.black,
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(999),
                   ),
@@ -406,22 +422,23 @@ class _CartTotalBar extends StatelessWidget {
 }
 
 class _EmptyCartState extends StatelessWidget {
+  _EmptyCartState({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding:
-        const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               width: 90,
               height: 90,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white,
-                boxShadow: const [
+                boxShadow: [
                   BoxShadow(
                     color: Color(0x22000000),
                     blurRadius: 16,

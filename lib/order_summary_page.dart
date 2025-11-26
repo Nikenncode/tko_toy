@@ -4,8 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'home_page.dart' show tkoOrange, tkoCream, tkoBrown, HomePage;
 import 'cart_service.dart';
-import 'home_page.dart'; // for tkoBrown, tkoCream, tkoOrange
 
 class OrderSummaryPage extends StatefulWidget {
   const OrderSummaryPage({super.key});
@@ -15,84 +15,154 @@ class OrderSummaryPage extends StatefulWidget {
 }
 
 class _OrderSummaryPageState extends State<OrderSummaryPage> {
+  final _nameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
+
   bool _isPlacing = false;
 
-  Future<void> _placeOrder({
-    required BuildContext context,
-    required List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
-    required double subtotal,
-    required double tax,
-    required double total,
-  }) async {
-    if (docs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Your cart is empty.')),
-      );
-      return;
-    }
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _addressCtrl.dispose();
+    super.dispose();
+  }
 
+  Future<void> _placeOrder() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please log in to place an order.')),
+        const SnackBar(content: Text('Please login first.')),
       );
       return;
     }
 
-    if (_isPlacing) return;
+    if (_nameCtrl.text.trim().isEmpty ||
+        _phoneCtrl.text.trim().isEmpty ||
+        _addressCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all address fields.')),
+      );
+      return;
+    }
 
     setState(() => _isPlacing = true);
 
     try {
-      // Build items list from cart
-      final items = docs.map((doc) {
-        final data = doc.data();
-        return {
-          'productId': data['productId'] ?? '',
-          'name': data['name'] ?? '',
-          'price': data['price'] ?? 0,
-          'qty': data['qty'] ?? 1,
-          'imageUrl': data['imageUrl'] ?? '',
-          'category': data['category'] ?? '',
-        };
-      }).toList();
-
-      // create order doc
-      final ordersRef = FirebaseFirestore.instance
+      final cartRef = FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
-          .collection('orders')
-          .doc(); // auto ID
+          .collection('cart');
 
-      final rawId = ordersRef.id;
-      final year = DateTime.now().year;
-      final shortId = rawId.substring(0, 6).toUpperCase();
-      final displayOrderId = 'TKO-$year-$shortId';
+      final cartSnap = await cartRef.get();
+      if (cartSnap.docs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Your cart is empty.')),
+        );
+        setState(() => _isPlacing = false);
+        return;
+      }
 
-      await ordersRef.set({
-        'orderId': rawId,
-        'orderNumber': displayOrderId,
-        'createdAt': FieldValue.serverTimestamp(),
+      // ---------- build line items & totals ----------
+      double subtotal = 0;
+      final List<Map<String, dynamic>> items = [];
+
+      for (final d in cartSnap.docs) {
+        final data = d.data();
+        final price = (data['price'] ?? 0) as num;
+        final qty = (data['qty'] ?? 1) as int;
+        final lineTotal = price.toDouble() * qty;
+
+        subtotal += lineTotal;
+
+        items.add({
+          'productId': data['productId'] ?? d.id,
+          'name': data['name'] ?? '',
+          'price': price.toDouble(),
+          'qty': qty,
+          'imageUrl': data['imageUrl'] ?? '',
+          'category': data['category'] ?? '',
+          'lineTotal': lineTotal,
+        });
+      }
+
+      final shippingCost = 0.0; // change later if needed
+      final total = subtotal + shippingCost;
+      final itemCount = items.length;
+      final now = Timestamp.now();
+
+      // 👇 shipping map that MyOrdersPage can show
+      final shipping = {
+        'name': _nameCtrl.text.trim(),
+        'phone': _phoneCtrl.text.trim(),
+        'fullAddress': _addressCtrl.text.trim(),
+      };
+
+      // ---------- 1) user orders collection ----------
+      final userOrderRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('orders');
+
+      final userOrderDoc = await userOrderRef.add({
+        'createdAt': now,
+        'status': 'Placed',        // matches MyOrdersPage colour logic
         'items': items,
+        'itemCount': itemCount,    // 👈 used in MyOrdersPage
         'subtotal': subtotal,
-        'tax': tax,
+        'shippingCost': shippingCost,
         'total': total,
-        'status': 'pending',
+        'shipping': shipping,      // 👈 MyOrdersPage reads this
       });
 
-      // clear cart
+      // ---------- 2) master orders collection ----------
+      final masterRef =
+      FirebaseFirestore.instance.collection('orders_master');
+
+      await masterRef.add({
+        'userId': user.uid,
+        'userEmail': user.email,
+        'userOrderId': userOrderDoc.id,
+        'createdAt': now,
+        'status': 'Placed',
+        'items': items,
+        'itemCount': itemCount,
+        'subtotal': subtotal,
+        'shippingCost': shippingCost,
+        'total': total,
+        'shipping': shipping,
+      });
+
+      // ---------- 3) update points (yearPoints / lifetimePts) ----------
+      final pointsEarned = total.floor(); // 1 pt per $1
+      final userDocRef =
+      FirebaseFirestore.instance.collection('users').doc(user.uid);
+
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final snap = await tx.get(userDocRef);
+        final data = snap.data() ?? {};
+        final currentYear = (data['yearPoints'] ?? 0) as int;
+        final currentLife = (data['lifetimePts'] ?? 0) as int;
+
+        tx.update(userDocRef, {
+          'yearPoints': currentYear + pointsEarned,
+          'lifetimePts': currentLife + pointsEarned,
+        });
+      });
+
+      // ---------- 4) clear cart ----------
       await CartService.instance.clearCart();
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order placed successfully 🎉')),
+        const SnackBar(content: Text('Order placed successfully!')),
       );
 
-      // Go back to HomePage (clear stack)
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
+      // ---------- 5) go back to home ----------
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomePage(initialTab: 0)),
             (route) => false,
       );
     } catch (e) {
@@ -101,32 +171,18 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         SnackBar(content: Text('Error placing order: $e')),
       );
     } finally {
-      if (mounted) {
-        setState(() => _isPlacing = false);
-      }
+      if (mounted) setState(() => _isPlacing = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Order Summary'),
-        ),
-        body: const Center(
-          child: Text('Please log in to see your order summary.'),
-        ),
-      );
-    }
-
     return Scaffold(
       backgroundColor: tkoCream,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 0.4,
+        elevation: 0,
+        centerTitle: true,
         title: Text(
           'Order Summary',
           style: GoogleFonts.poppins(
@@ -134,321 +190,333 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
             color: tkoBrown,
           ),
         ),
-        centerTitle: true,
       ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: CartService.instance.cartStream(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: tkoBrown),
-            );
-          }
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SectionTitle('Shipping details'),
+                  const SizedBox(height: 8),
+                  _TextField(
+                    controller: _nameCtrl,
+                    label: 'Full name',
+                    hint: 'John Doe',
+                  ),
+                  const SizedBox(height: 10),
+                  _TextField(
+                    controller: _phoneCtrl,
+                    label: 'Phone',
+                    hint: '+1 555 555 5555',
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 10),
+                  _TextField(
+                    controller: _addressCtrl,
+                    label: 'Address',
+                    hint: 'Street, city, province, postal code',
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 22),
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.shopping_bag_outlined,
-                        size: 60, color: tkoBrown),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Your cart is empty',
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: tkoBrown,
-                      ),
+                  _SectionTitle('Items in your cart'),
+                  const SizedBox(height: 8),
+                  _CartPreviewBox(),
+                  const SizedBox(height: 22),
+
+                  _SectionTitle('Payment summary'),
+                  const SizedBox(height: 8),
+                  _SummaryTotalsBox(),
+                ],
+              ),
+            ),
+          ),
+
+          // bottom button
+          SafeArea(
+            top: false,
+            child: Container(
+              padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x22000000),
+                    blurRadius: 16,
+                    offset: Offset(0, -6),
+                  )
+                ],
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _isPlacing ? null : _placeOrder,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: tkoOrange,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Add some items to your cart before placing an order.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: Colors.black54,
-                      ),
+                  ),
+                  child: _isPlacing
+                      ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      valueColor:
+                      AlwaysStoppedAnimation<Color>(Colors.black),
                     ),
-                  ],
+                  )
+                      : Text(
+                    'Place order',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
-            );
-          }
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-          final docs = snapshot.data!.docs;
+/// small section title
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
 
-          double subtotal = 0;
-          for (final d in docs) {
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: GoogleFonts.poppins(
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+        color: tkoBrown,
+      ),
+    );
+  }
+}
+
+/// styled text field
+class _TextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final int maxLines;
+  final TextInputType? keyboardType;
+
+  const _TextField({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    this.maxLines = 1,
+    this.keyboardType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          decoration: InputDecoration(
+            hintText: hint,
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.black.withOpacity(.08)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.black.withOpacity(.12)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// shows a short list of cart items
+class _CartPreviewBox extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: CartService.instance.cartStream(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              'Your cart is empty.',
+              style: GoogleFonts.poppins(),
+            ),
+          );
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            children: [
+              for (final d in docs.take(3)) ...[
+                _CartPreviewRow(data: d.data()),
+                if (d != docs.last) const Divider(height: 12),
+              ],
+              if (docs.length > 3) ...[
+                const SizedBox(height: 6),
+                Text(
+                  '+ ${docs.length - 3} more item(s)',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.black.withOpacity(.6),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CartPreviewRow extends StatelessWidget {
+  final Map<String, dynamic> data;
+  const _CartPreviewRow({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = (data['name'] ?? '') as String;
+    final qty = (data['qty'] ?? 1) as int;
+    final price = (data['price'] ?? 0) as num;
+    final line = price.toDouble() * qty;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            '$name × $qty',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(fontSize: 13),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '\$${line.toStringAsFixed(2)}',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// totals box (subtotal / shipping / total)
+class _SummaryTotalsBox extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: CartService.instance.cartStream(),
+      builder: (context, snapshot) {
+        double subtotal = 0;
+        if (snapshot.hasData) {
+          for (final d in snapshot.data!.docs) {
             final data = d.data();
             final price = (data['price'] ?? 0) as num;
             final qty = (data['qty'] ?? 1) as int;
             subtotal += price.toDouble() * qty;
           }
+        }
+        final shipping = 0.0;
+        final total = subtotal + shipping;
 
-          final tax = subtotal * 0.13; // 13% HST style
-          final total = subtotal + tax;
-
-          return Column(
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
             children: [
-              const SizedBox(height: 10),
-
-              // ITEMS LIST
-              Expanded(
-                child: ListView.separated(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: docs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    final data = doc.data();
-
-                    final name = (data['name'] ?? '') as String;
-                    final price = (data['price'] ?? 0) as num;
-                    final qty = (data['qty'] ?? 1) as int;
-                    final imageUrl = (data['imageUrl'] ?? '') as String;
-                    final category = (data['category'] ?? '') as String;
-
-                    final lineTotal = price.toDouble() * qty;
-
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.black.withOpacity(.05),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // IMAGE
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Container(
-                                width: 60,
-                                height: 60,
-                                color: Colors.grey.shade100,
-                                child: imageUrl.isNotEmpty
-                                    ? Image.network(
-                                  imageUrl,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Icon(
-                                    Icons.image_not_supported,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                )
-                                    : Icon(
-                                  Icons.shopping_bag_outlined,
-                                  color: Colors.grey.shade400,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-
-                            // TEXT
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    name,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: tkoBrown,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  if (category.isNotEmpty)
-                                    Text(
-                                      category,
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 11,
-                                        color: Colors.black54,
-                                      ),
-                                    ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Qty: $qty',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 12,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                      Text(
-                                        '\$${lineTotal.toStringAsFixed(2)}',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              // SUMMARY BAR
-              Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0x22000000),
-                      blurRadius: 16,
-                      offset: Offset(0, -6),
-                    ),
-                  ],
-                ),
-                child: SafeArea(
-                  top: false,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Subtotal
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Subtotal',
-                            style: GoogleFonts.poppins(
-                              fontSize: 13,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          Text(
-                            '\$${subtotal.toStringAsFixed(2)}',
-                            style: GoogleFonts.poppins(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-
-                      // Tax
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Estimated tax (13%)',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              color: Colors.black54,
-                            ),
-                          ),
-                          Text(
-                            '\$${tax.toStringAsFixed(2)}',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      const Divider(height: 1),
-                      const SizedBox(height: 8),
-
-                      // Total + Place Order
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Total',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 13,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '\$${total.toStringAsFixed(2)}',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                    color: tkoBrown,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(
-                            height: 44,
-                            child: ElevatedButton(
-                              onPressed: _isPlacing
-                                  ? null
-                                  : () => _placeOrder(
-                                context: context,
-                                docs: docs,
-                                subtotal: subtotal,
-                                tax: tax,
-                                total: total,
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: tkoOrange,
-                                foregroundColor: Colors.black,
-                                padding:
-                                const EdgeInsets.symmetric(horizontal: 24),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                              ),
-                              child: _isPlacing
-                                  ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor:
-                                  AlwaysStoppedAnimation<Color>(
-                                      Colors.black),
-                                ),
-                              )
-                                  : Text(
-                                'Place Order',
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              _row('Subtotal', subtotal),
+              const SizedBox(height: 6),
+              _row('Shipping', shipping),
+              const Divider(height: 18),
+              _row('Total', total, isBold: true),
             ],
-          );
-        },
-      ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _row(String label, double value, {bool isBold = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 13,
+            fontWeight: isBold ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+        Text(
+          '\$${value.toStringAsFixed(2)}',
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }

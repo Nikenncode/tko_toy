@@ -4,8 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'home_page.dart';           // for tkoBrown, tkoCream, tkoOrange
-import 'order_details_page.dart';  // we'll create this next
+import 'order_tracking_page.dart';
+
+/// Local copies of brand colours (names can match, this file does not
+/// import home_page.dart so there is no conflict here).
+const tkoOrange = Color(0xFFFF6A00);
+const tkoCream  = Color(0xFFF7F2EC);
+const tkoBrown  = Color(0xFF6A3B1A);
 
 class MyOrdersPage extends StatelessWidget {
   const MyOrdersPage({super.key});
@@ -13,9 +18,9 @@ class MyOrdersPage extends StatelessWidget {
   Stream<QuerySnapshot<Map<String, dynamic>>> _ordersStream() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      // return empty stream if no user
-      return const Stream.empty();
+      return const Stream<QuerySnapshot<Map<String, dynamic>>>.empty();
     }
+
     return FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
@@ -26,25 +31,13 @@ class MyOrdersPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('My Orders'),
-        ),
-        body: const Center(
-          child: Text('Please log in to view your orders.'),
-        ),
-      );
-    }
-
     return Scaffold(
       backgroundColor: tkoCream,
       appBar: AppBar(
+        elevation: 0,
         backgroundColor: Colors.white,
-        elevation: 0.4,
         centerTitle: true,
+        iconTheme: const IconThemeData(color: tkoBrown),
         title: Text(
           'My Orders',
           style: GoogleFonts.poppins(
@@ -66,222 +59,65 @@ class MyOrdersPage extends StatelessWidget {
             return const _EmptyOrdersState();
           }
 
-          final docs = snapshot.data!.docs;
+          final orders = snapshot.data!.docs;
 
           return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-            itemCount: docs.length,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            itemCount: orders.length,
             separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
-              final doc = docs[index];
+              final doc = orders[index];
               final data = doc.data();
 
-              final orderNumber =
-              (data['orderNumber'] ?? data['orderId'] ?? '').toString();
-              final status = (data['status'] ?? 'pending').toString();
-              final total = (data['total'] ?? 0) as num;
+              final orderId   = doc.id;
               final createdAt = data['createdAt'] as Timestamp?;
-              final items = (data['items'] as List?) ?? [];
+              final total     = (data['total'] ?? 0) as num;
+              final itemCount = (data['itemCount'] ?? (data['items'] as List?)?.length ?? 0) as int;
+              final status    = (data['status'] ?? 'pending') as String;
 
-              final dateText = createdAt != null
-                  ? _formatDateTime(createdAt.toDate())
-                  : 'Unknown date';
+              String dateText = '';
+              if (createdAt != null) {
+                final dt = createdAt.toDate();
+                dateText =
+                '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
+                    '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+              }
 
-              return _OrderCard(
-                orderId: doc.id,
-                orderNumber: orderNumber,
-                status: status,
-                total: total.toDouble(),
-                dateText: dateText,
-                itemCount: items.length,
-                fullData: data,
+              // small one-line address preview
+              String addressLine = '';
+              final rawAddr = data['address'];
+              if (rawAddr is Map) {
+                final addrMap = Map<String, dynamic>.from(rawAddr);
+                addressLine =
+                    (addrMap['fullAddress'] ?? addrMap['address'] ?? '')
+                        .toString();
+              }
+
+              return InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => OrderTrackingPage(
+                        orderId: orderId,
+                        orderData: data,
+                      ),
+                    ),
+                  );
+                },
+                child: _OrderCard(
+                  orderId: orderId,
+                  dateText: dateText,
+                  total: total.toDouble(),
+                  itemCount: itemCount,
+                  status: status,
+                  addressLine: addressLine,
+                ),
               );
             },
           );
         },
-      ),
-    );
-  }
-
-  String _formatDateTime(DateTime dt) {
-    // Simple: Jan 24, 2025 • 3:42 PM
-    final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    final m = months[dt.month - 1];
-    final day = dt.day;
-    final year = dt.year;
-
-    final hour12 = dt.hour == 0
-        ? 12
-        : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
-    final minute = dt.minute.toString().padLeft(2, '0');
-    final ampm = dt.hour >= 12 ? 'PM' : 'AM';
-
-    return '$m $day, $year • $hour12:$minute $ampm';
-  }
-}
-
-class _OrderCard extends StatelessWidget {
-  final String orderId;
-  final String orderNumber;
-  final String status;
-  final double total;
-  final String dateText;
-  final int itemCount;
-  final Map<String, dynamic> fullData;
-
-  const _OrderCard({
-    required this.orderId,
-    required this.orderNumber,
-    required this.status,
-    required this.total,
-    required this.dateText,
-    required this.itemCount,
-    required this.fullData,
-  });
-
-  Color _statusColor() {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return Colors.orange.shade600;
-      case 'completed':
-      case 'shipped':
-      case 'delivered':
-        return Colors.green.shade700;
-      case 'cancelled':
-        return Colors.red.shade600;
-      default:
-        return Colors.blueGrey.shade600;
-    }
-  }
-
-  String _statusLabel() {
-    final s = status.toLowerCase();
-    if (s == 'pending') return 'Pending';
-    if (s == 'completed') return 'Completed';
-    if (s == 'shipped') return 'Shipped';
-    if (s == 'delivered') return 'Delivered';
-    if (s == 'cancelled') return 'Cancelled';
-    return status;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = _statusColor();
-
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => OrderDetailsPage(
-              orderId: orderId,
-              orderData: fullData,
-            ),
-          ),
-        );
-      },
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.black.withOpacity(.04)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x16000000),
-              blurRadius: 14,
-              offset: Offset(0, 6),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // TOP ROW: Order ID + Status
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    orderNumber.isNotEmpty
-                        ? orderNumber
-                        : 'Order $orderId',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: tkoBrown,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: c.withOpacity(.08),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    _statusLabel(),
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: c,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 6),
-
-            // DATE + ITEMS
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  dateText,
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: Colors.black.withOpacity(.65),
-                  ),
-                ),
-                Text(
-                  '$itemCount item${itemCount == 1 ? '' : 's'}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: Colors.black.withOpacity(.65),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 10),
-
-            // TOTAL + ARROW
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '\$${total.toStringAsFixed(2)}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: tkoBrown,
-                  ),
-                ),
-                const Icon(Icons.chevron_right_rounded,
-                    size: 22, color: Colors.black54),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -294,32 +130,16 @@ class _EmptyOrdersState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding:
-        const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x22000000),
-                    blurRadius: 16,
-                    offset: Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.receipt_long_rounded,
-                size: 42,
-                color: tkoBrown,
-              ),
+            const Icon(
+              Icons.receipt_long_outlined,
+              size: 64,
+              color: tkoBrown,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             Text(
               'No orders yet',
               style: GoogleFonts.poppins(
@@ -330,7 +150,7 @@ class _EmptyOrdersState extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'When you place an order, it will show up here.',
+              'Your past orders will show up here once you place something.',
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 13,
@@ -339,6 +159,142 @@ class _EmptyOrdersState extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _OrderCard extends StatelessWidget {
+  final String orderId;
+  final String dateText;
+  final double total;
+  final int itemCount;
+  final String status;
+  final String addressLine;
+
+  const _OrderCard({
+    required this.orderId,
+    required this.dateText,
+    required this.total,
+    required this.itemCount,
+    required this.status,
+    required this.addressLine,
+  });
+
+  Color get _statusColor {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange.shade700;
+      case 'confirmed':
+        return Colors.blueGrey.shade700;
+      case 'processing':
+        return Colors.blue.shade700;
+      case 'shipped':
+      case 'out_for_delivery':
+        return Colors.deepPurple.shade700;
+      case 'delivered':
+        return Colors.green.shade700;
+      case 'cancelled':
+        return Colors.red.shade700;
+      default:
+        return Colors.grey.shade700;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x16000000),
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: tkoBrown.withOpacity(.08),
+            ),
+            child: const Icon(
+              Icons.receipt_long_outlined,
+              color: tkoBrown,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Order #$orderId',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: tkoBrown,
+                  ),
+                ),
+                if (dateText.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    dateText,
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: Colors.black.withOpacity(.55),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 2),
+                Text(
+                  '$itemCount item${itemCount == 1 ? '' : 's'} · \$${total.toStringAsFixed(2)}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.black.withOpacity(.75),
+                  ),
+                ),
+                if (addressLine.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    addressLine,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: Colors.black.withOpacity(.55),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: _statusColor.withOpacity(.10),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              status[0].toUpperCase() + status.substring(1),
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: _statusColor,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -14,6 +14,8 @@ import 'discover_page.dart';
 import 'notification_service.dart';
 import 'notifications_page.dart';
 import 'cart_page.dart';
+import 'my_orders_page.dart';
+
 
 const tkoOrange = Color(0xFFFF6A00);
 const tkoCream = Color(0xFFF7F2EC);
@@ -996,18 +998,30 @@ class _ActionGrid extends StatelessWidget {
         const SizedBox(height: 14),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
+          children: [
             _PillAction(
               icon: Icons.history,
               label: 'Activity',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const MyOrdersPage(),
+                  ),
+                );
+              },
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             _PillAction(
               icon: Icons.support_agent,
               label: 'Support',
+              onTap: () {
+                // TODO: later add support page / email
+              },
             ),
           ],
         ),
+
       ],
     );
   }
@@ -1096,41 +1110,51 @@ class _PrimaryActionCard extends StatelessWidget {
 class _PillAction extends StatelessWidget {
   final IconData icon;
   final String label;
+  final VoidCallback? onTap;
 
-  const _PillAction({required this.icon, required this.label});
+  const _PillAction({
+    required this.icon,
+    required this.label,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-            offset: Offset(0, 3),
-          )
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: tkoBrown),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-              color: tkoBrown,
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 8,
+              offset: Offset(0, 3),
+            )
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: tkoBrown),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                color: tkoBrown,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
+
 
 // ==================== BENEFITS SHEET ====================
 
