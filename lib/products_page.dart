@@ -5,6 +5,8 @@ import 'home_page.dart';
 import 'trading_card_page.dart';
 import 'toys_page.dart';
 import 'supplies_page.dart';
+import 'cart_page.dart';
+
 
 class Poster {
   final String id;
@@ -60,7 +62,19 @@ class ProductsPage extends StatelessWidget {
             color: Colors.black87,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.shopping_cart_outlined, color: Colors.black87),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CartPage()),
+              );
+            },
+          ),
+        ],
       ),
+
 
       bottomNavigationBar: TkoBottomNav(
         index: -1,

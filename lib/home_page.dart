@@ -13,6 +13,7 @@ import 'products_page.dart';
 import 'discover_page.dart';
 import 'notification_service.dart';
 import 'notifications_page.dart';
+import 'cart_page.dart';
 
 const tkoOrange = Color(0xFFFF6A00);
 const tkoCream = Color(0xFFF7F2EC);
@@ -120,9 +121,13 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.notifications_none, color: Colors.black87),
           ),
           IconButton(
-            onPressed: () {},
-            icon:
-            const Icon(Icons.account_circle_outlined, color: Colors.black87),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CartPage()),
+              );
+            },
+            icon: const Icon(Icons.shopping_cart_outlined, color: Colors.black87),
           ),
         ],
         bottom: PreferredSize(

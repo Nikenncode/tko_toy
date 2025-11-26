@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'Product_description.dart';
-import 'home_page.dart';
+
+import '../Product_description.dart';
+import '../home_page.dart';
 
 class SuppliesGridPage extends StatefulWidget {
   final String selectedTab;
@@ -20,7 +21,6 @@ class SuppliesGridPage extends StatefulWidget {
 
 class _SuppliesGridPageState extends State<SuppliesGridPage>
     with SingleTickerProviderStateMixin {
-
   late TabController tabController;
   late String activeTab;
 
@@ -45,6 +45,12 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
     });
   }
 
+  @override
+  void dispose() {
+    tabController.dispose();
+    super.dispose();
+  }
+
   String _getFirebaseCollection() {
     final t = activeTab.toLowerCase();
 
@@ -55,12 +61,6 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
     if (t.contains("card")) return "Card_sleeves";
 
     return "Card_sleeves";
-  }
-
-  String _getImage(Map<String, dynamic> data) {
-    final list = (data['images'] as List?)?.whereType<String>().toList() ?? [];
-    if (list.isNotEmpty) return list.first;
-    return "https://via.placeholder.com/300x300?text=No+Image";
   }
 
   num? _getPrice(List? variants) {
@@ -81,7 +81,6 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
 
     return Scaffold(
       backgroundColor: Colors.white,
-
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.4,
@@ -94,10 +93,9 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
           ),
         ),
       ),
-
       body: Column(
         children: [
-          Container(
+          SizedBox(
             height: 50,
             child: TabBar(
               controller: tabController,
@@ -108,7 +106,6 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
               tabs: widget.allTabs.map((t) => Tab(text: t)).toList(),
             ),
           ),
-
           Expanded(
             child: _buildFirebaseGrid(firebaseCollection),
           ),
@@ -125,19 +122,19 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
                     (route) => false,
               );
               break;
-
             case 1:
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (_) => const HomePage(initialTab: 1)),
+                MaterialPageRoute(
+                    builder: (_) => const HomePage(initialTab: 1)),
                     (route) => false,
               );
               break;
-
             case 3:
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (_) => const HomePage(initialTab: 3)),
+                MaterialPageRoute(
+                    builder: (_) => const HomePage(initialTab: 3)),
                     (route) => false,
               );
               break;
@@ -166,7 +163,7 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
             crossAxisCount: 2,
             mainAxisSpacing: 18,
             crossAxisSpacing: 14,
-            childAspectRatio: 0.67,
+            childAspectRatio: 0.67, // nicer, avoids overflow
           ),
           itemCount: docs.length,
           itemBuilder: (context, index) {
@@ -176,8 +173,10 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
             final variants = (data['variants'] as List?) ?? [];
             final price = _getPrice(variants);
 
-            final images = (data['images'] as List?)?.whereType<String>().toList() ?? [];
-            final imageUrl = images.isNotEmpty && images.first.startsWith("http")
+            final images =
+                (data['images'] as List?)?.whereType<String>().toList() ?? [];
+            final imageUrl =
+            images.isNotEmpty && images.first.startsWith("http")
                 ? images.first
                 : null;
 
@@ -197,18 +196,19 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
                   ),
                 );
               },
-
               child: StatefulBuilder(
                 builder: (context, setState) {
                   return Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade300, width: 1),
+                      border:
+                      Border.all(color: Colors.grey.shade300, width: 1),
                       color: Colors.white,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // IMAGE + HEART
                         Stack(
                           children: [
                             ClipRRect(
@@ -226,15 +226,18 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
                                     mainAxisAlignment:
                                     MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.image_not_supported,
-                                          size: 40,
-                                          color: Colors.grey.shade400),
+                                      Icon(
+                                        Icons.image_not_supported,
+                                        size: 40,
+                                        color: Colors.grey.shade400,
+                                      ),
                                       const SizedBox(height: 4),
                                       Text(
                                         "No image",
                                         style: TextStyle(
-                                            color: Colors.grey.shade500,
-                                            fontSize: 12),
+                                          color: Colors.grey.shade500,
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -245,7 +248,6 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
                                 ),
                               ),
                             ),
-
                             Positioned(
                               top: 10,
                               right: 10,
@@ -274,7 +276,8 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
                                         ? Icons.favorite
                                         : Icons.favorite_border,
                                     size: 20,
-                                    color: isLiked ? Colors.red : Colors.black,
+                                    color:
+                                    isLiked ? Colors.red : Colors.black,
                                   ),
                                 ),
                               ),
@@ -282,16 +285,21 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
                           ],
                         ),
 
+                        // DIVIDER
                         Container(
                           height: 1,
                           width: double.infinity,
                           color: Colors.grey.shade300,
                         ),
 
+                        // PRICE
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+                          padding:
+                          const EdgeInsets.fromLTRB(10, 10, 10, 0),
                           child: Text(
-                            price != null ? "\$${price.toStringAsFixed(2)}" : "",
+                            price != null
+                                ? "\$${price.toStringAsFixed(2)}"
+                                : "",
                             style: GoogleFonts.poppins(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -301,8 +309,10 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
 
                         const SizedBox(height: 6),
 
+                        // TITLE
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          padding:
+                          const EdgeInsets.symmetric(horizontal: 10),
                           child: Text(
                             title,
                             maxLines: 3,
@@ -316,6 +326,7 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
                         ),
 
                         const SizedBox(height: 10),
+                        // 🔚 no "Add to Cart" button here anymore
                       ],
                     ),
                   );
