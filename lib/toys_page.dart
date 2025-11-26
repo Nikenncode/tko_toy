@@ -135,7 +135,10 @@ class ToysPage extends StatelessWidget {
                     ),
                   ),
 
-                  const Icon(Icons.chevron_right, color: Colors.black54),
+                  SizedBox(
+                    width: 30,
+                    child: Icon(Icons.chevron_right, color: Colors.black54),
+                  ),
                 ],
               ),
             ),

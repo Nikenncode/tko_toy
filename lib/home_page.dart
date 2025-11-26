@@ -55,7 +55,7 @@ class _HomePageState extends State<HomePage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      debugPrint('🔥 FCM onMessage received!');
+      debugPrint('FCM onMessage received!');
       final notif = message.notification;
 
       if (uid != null && notif != null) {
