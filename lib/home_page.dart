@@ -2,23 +2,23 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:simple_icons/simple_icons.dart';
-import 'package:tko_toy/profile_page.dart';
+
+import 'profile_page.dart';
 import 'membership_qr_page.dart';
 import 'discord_page.dart';
 import 'products_page.dart';
 import 'discover_page.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'notification_service.dart';
 import 'notifications_page.dart';
 
-// Brand colors (TKO)
 const tkoOrange = Color(0xFFFF6A00);
-const tkoCream  = Color(0xFFF7F2EC);
-const tkoBrown  = Color(0xFF6A3B1A);
-const tkoTeal   = Color(0xFF00B8A2);
-const tkoGold   = Color(0xFFFFD23F);
+const tkoCream = Color(0xFFF7F2EC);
+const tkoBrown = Color(0xFF6A3B1A);
+const tkoTeal = Color(0xFF00B8A2);
+const tkoGold = Color(0xFFFFD23F);
 
 class HomePage extends StatefulWidget {
   final int initialTab;
@@ -38,6 +38,7 @@ class _HomePageState extends State<HomePage> {
     index = widget.initialTab;
     _initPushNotifications();
   }
+
   Future<void> _initPushNotifications() async {
     final messaging = FirebaseMessaging.instance;
 
@@ -76,6 +77,7 @@ class _HomePageState extends State<HomePage> {
       }
     });
   }
+
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
@@ -86,10 +88,12 @@ class _HomePageState extends State<HomePage> {
     ];
 
     return Scaffold(
+      backgroundColor: tkoCream,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.white.withOpacity(.96),
         elevation: 0,
         centerTitle: true,
+        titleSpacing: 0,
         title: SizedBox(
           height: 36,
           child: Image.asset(
@@ -117,10 +121,17 @@ class _HomePageState extends State<HomePage> {
           ),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.account_circle_outlined, color: Colors.black87),
+            icon:
+            const Icon(Icons.account_circle_outlined, color: Colors.black87),
           ),
         ],
-
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            color: Colors.black.withOpacity(.04),
+          ),
+        ),
       ),
       body: SafeArea(child: pages[index]),
       bottomNavigationBar: TkoBottomNav(
@@ -133,16 +144,15 @@ class _HomePageState extends State<HomePage> {
             );
             return;
           }
-          setState(() => index = i.clamp(0,3));
+          setState(() => index = i.clamp(0, 3));
         },
       ),
-      backgroundColor: Colors.white,
     );
   }
 }
 
+// ==================== HOME TAB ====================
 
-// HOME TAB
 class _HomeTab extends StatelessWidget {
   const _HomeTab();
 
@@ -162,31 +172,29 @@ class _HomeTab extends StatelessWidget {
 
     return Stack(
       children: [
+        // soft background: cream → white
         Positioned.fill(
           child: Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment(-1, -1),
-                end: Alignment(1, 1),
-                colors: [Colors.white, tkoCream],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  tkoCream,
+                  Colors.white,
+                ],
               ),
             ),
           ),
         ),
+        // soft halo accent
         Positioned(
-          left: -90,
-          top: -80,
-          child: _bubble(220, tkoOrange.withOpacity(.10)),
-        ),
-        Positioned(
-          right: -70,
-          bottom: -40,
-          child: _bubble(180, tkoTeal.withOpacity(.10)),
-        ),
-        Positioned(
-          right: 16,
-          top: 64,
-          child: _bubble(70, tkoGold.withOpacity(.16)),
+          top: -40,
+          right: -40,
+          child: _softHalo(
+            size: 160,
+            color: tkoTeal.withOpacity(.25),
+          ),
         ),
 
         StreamBuilder(
@@ -225,7 +233,11 @@ class _HomeTab extends StatelessWidget {
                   FirebaseFirestore.instance
                       .doc('users/${FirebaseAuth.instance.currentUser!.uid}')
                       .set(
-                    {'tier': 'Featherweight', 'yearPoints': 0, 'lifetimePts': 0},
+                    {
+                      'tier': 'Featherweight',
+                      'yearPoints': 0,
+                      'lifetimePts': 0,
+                    },
                     SetOptions(merge: true),
                   );
                   return const Center(
@@ -249,20 +261,21 @@ class _HomeTab extends StatelessWidget {
 
                 return CustomScrollView(
                   slivers: [
+                    // greeting
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Hello,',
+                              'Welcome back,',
                               style: TextStyle(
                                 color: Colors.black.withOpacity(.55),
                                 fontSize: 13,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 4),
                             Text(
                               '$name.',
                               maxLines: 1,
@@ -270,6 +283,7 @@ class _HomeTab extends StatelessWidget {
                               style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w900,
+                                color: tkoBrown,
                               ),
                             ),
                           ],
@@ -277,6 +291,7 @@ class _HomeTab extends StatelessWidget {
                       ),
                     ),
 
+                    // Tier card
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -290,16 +305,18 @@ class _HomeTab extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                    const SliverToBoxAdapter(child: SizedBox(height: 18)),
 
+                    // Posters
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: _PosterCarousel(height: posterHeight),
                       ),
                     ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                    const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
+                    // Actions
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -311,7 +328,7 @@ class _HomeTab extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 18)),
+                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
                   ],
                 );
               },
@@ -323,7 +340,26 @@ class _HomeTab extends StatelessWidget {
   }
 }
 
-// Posters (Firestore)
+Widget _softHalo({required double size, required Color color}) {
+  return Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: color.withOpacity(.15),
+      boxShadow: [
+        BoxShadow(
+          color: color.withOpacity(.35),
+          blurRadius: size * 0.6,
+          spreadRadius: size * 0.15,
+        ),
+      ],
+    ),
+  );
+}
+
+// ==================== POSTERS ====================
+
 class _Poster {
   final String id, title, imageUrl, subtitle, ctaText, deeplink;
   final int priority;
@@ -346,8 +382,9 @@ class _Poster {
       subtitle: (m['subtitle'] ?? '').toString(),
       ctaText: (m['ctaText'] ?? '').toString(),
       deeplink: (m['deeplink'] ?? '').toString(),
-      priority:
-      (m['priority'] ?? 0) is num ? (m['priority'] as num).toInt() : 0,
+      priority: (m['priority'] ?? 0) is num
+          ? (m['priority'] as num).toInt()
+          : 0,
     );
   }
 }
@@ -426,7 +463,7 @@ class _PosterCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: Stack(
         children: [
           Positioned.fill(
@@ -450,8 +487,8 @@ class _PosterCard extends StatelessWidget {
             ),
           ),
           Positioned(
-            left: 12,
-            right: 12,
+            left: 14,
+            right: 14,
             bottom: 12,
             child: Row(
               children: [
@@ -486,17 +523,19 @@ class _PosterCard extends StatelessWidget {
                     backgroundColor: Colors.black.withOpacity(.25),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
+                      horizontal: 12,
                       vertical: 6,
                     ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(999),
                     ),
                   ),
                   onPressed: () {
                     // TODO: open item.deeplink or route
                   },
-                  child: Text(item.ctaText.isEmpty ? 'Details' : item.ctaText),
+                  child: Text(
+                    item.ctaText.isEmpty ? 'Details' : item.ctaText,
+                  ),
                 ),
               ],
             ),
@@ -507,9 +546,11 @@ class _PosterCard extends StatelessWidget {
   }
 }
 
-// Discover page
+// ==================== DISCOVER TAB (simple list) ====================
+
 class _DiscoverTab extends StatelessWidget {
   const _DiscoverTab();
+
   @override
   Widget build(BuildContext context) {
     final items = List.generate(
@@ -537,36 +578,8 @@ class _DiscoverTab extends StatelessWidget {
   }
 }
 
-// Profile
-class _ProfileTab extends StatelessWidget {
-  const _ProfileTab();
-  @override
-  Widget build(BuildContext context) {
-    final u = FirebaseAuth.instance.currentUser;
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        ListTile(
-          leading: CircleAvatar(
-            backgroundImage:
-            (u?.photoURL != null) ? NetworkImage(u!.photoURL!) : null,
-            child: (u?.photoURL == null) ? const Icon(Icons.person) : null,
-          ),
-          title: Text(u?.displayName ?? 'Member'),
-          subtitle: Text(u?.email ?? ''),
-        ),
-        const Divider(),
-        ListTile(
-          leading: const Icon(Icons.logout),
-          title: const Text('Sign out'),
-          onTap: () => FirebaseAuth.instance.signOut(),
-        ),
-      ],
-    );
-  }
-}
+// ==================== TIER / PERKS MODEL ====================
 
-// Tier/Perk
 class _Tier {
   final String name;
   final int min;
@@ -609,8 +622,8 @@ int? _nextThreshold(List<_Tier> tiers, int pts) {
 int _tierIndexByName(List<_Tier> tiers, String name) =>
     tiers.indexWhere((t) => t.name.toLowerCase() == name.toLowerCase());
 
+// ==================== TIER CARD (lux solid style) ====================
 
-//Tier card
 class _TierCard extends StatelessWidget {
   final String tier;
   final int yearPoints;
@@ -659,212 +672,131 @@ class _TierCard extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(24),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                tkoTeal.withOpacity(.20),
-                tkoOrange.withOpacity(.18),
-                Colors.white,
-              ],
+            border: Border.all(
+              color: Colors.black.withOpacity(.04),
             ),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x22000000),
-                blurRadius: 22,
-                offset: Offset(0, 12),
+                color: Color(0x16000000),
+                blurRadius: 18,
+                offset: Offset(0, 10),
               ),
             ],
           ),
-          child: Column(
+          child: Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
+              // LEFT: text + progress
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // small pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _tierColor.withOpacity(.08),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.workspace_premium_outlined,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            tier,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$yearPoints pts',
+                      style: TextStyle(
+                        fontSize: compact ? 18 : 20,
+                        fontWeight: FontWeight.w900,
+                        color: tkoBrown,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      toNextPoints <= 0
+                          ? 'You’re at the highest tier for this year.'
+                          : 'Get $toNextPoints more points to reach $nextName.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.black.withOpacity(.72),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // progress bar
+                    Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Tiering',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.black.withOpacity(.55),
+                        Container(
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(.04),
+                            borderRadius: BorderRadius.circular(999),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          tier,
-                          style: TextStyle(
-                            fontSize: compact ? 18 : 20,
-                            fontWeight: FontWeight.w800,
-                            color: tkoBrown,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(999),
+                            child: LinearProgressIndicator(
+                              value: progress.clamp(0, 1),
+                              backgroundColor: Colors.transparent,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                _tierColor,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Text(
-                          '$yearPoints pts',
-                          style: TextStyle(
-                            fontSize: compact ? 18 : 20,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          toNextPoints <= 0
-                              ? 'You’re at the highest tier for this year.'
-                              : 'Get $toNextPoints more points to reach $nextName.',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.black.withOpacity(.75),
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '$pct% to next',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: _tierColor,
+                              ),
+                            ),
+                            Text(
+                              '${earnX.toStringAsFixed(2)}x pts / \$1',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black.withOpacity(.7),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ),
-
-                  const SizedBox(width: 16),
-
-                  SizedBox(
-                    width: compact ? 74 : 84,
-                    height: compact ? 74 : 84,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Container(
-                          width: compact ? 74 : 84,
-                          height: compact ? 74 : 84,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: RadialGradient(
-                              colors: [
-                                _tierColor.withOpacity(.75),
-                                _tierColor.withOpacity(.0),
-                              ],
-                            ),
-                          ),
-                        ),
-                        Container(
-                          width: compact ? 58 : 64,
-                          height: compact ? 58 : 64,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Colors.white,
-                                _tierColor.withOpacity(.8),
-                              ],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _tierColor.withOpacity(.4),
-                                blurRadius: 16,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: ClipOval(
-                            child: Padding(
-                              padding: const EdgeInsets.all(6.0),
-                              child: Image.asset(
-                                'assets/branding/tko_logo.png',
-                                fit: BoxFit.contain,
-                                color: Colors.white,
-                                colorBlendMode: BlendMode.srcATop,
-                                errorBuilder: (_, __, ___) => Icon(
-                                  Icons.sports_mma,
-                                  color: Colors.white,
-                                  size: compact ? 26 : 30,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const Positioned(
-                          right: 4,
-                          top: 8,
-                          child: Icon(
-                            Icons.auto_awesome,
-                            size: 16,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(width: 14),
 
-              // progress bar
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '$pct% to next',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: _tierColor,
-                        ),
-                      ),
-                      Text(
-                        '${earnX.toStringAsFixed(2)}x pts per \$1',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.black.withOpacity(.7),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(.9),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(999),
-                      child: LinearProgressIndicator(
-                        value: progress.clamp(0, 1),
-                        backgroundColor: Colors.transparent,
-                        valueColor:
-                        AlwaysStoppedAnimation<Color>(_tierColor),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        tier,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        nextName,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              // RIGHT: emblem only (🔻 Upgrade button removed)
+              _TierEmblem(
+                accent: _tierColor,
+                compact: compact,
               ),
             ],
           ),
@@ -874,7 +806,66 @@ class _TierCard extends StatelessWidget {
   }
 }
 
-// Action area
+
+class _TierEmblem extends StatelessWidget {
+  final Color accent;
+  final bool compact;
+
+  const _TierEmblem({required this.accent, required this.compact});
+
+  @override
+  Widget build(BuildContext context) {
+    final double outer = compact ? 64 : 72;
+    final double inner = compact ? 46 : 52;
+
+    return SizedBox(
+      width: outer,
+      height: outer,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: outer,
+            height: outer,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: accent.withOpacity(.10),
+            ),
+          ),
+          Container(
+            width: inner,
+            height: inner,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white,
+                  accent.withOpacity(.9),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withOpacity(.55),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.auto_awesome,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== ACTION GRID ====================
+
 class _ActionGrid extends StatelessWidget {
   final int yearPts;
   final List<_Tier> tiers;
@@ -961,16 +952,14 @@ class _ActionGrid extends StatelessWidget {
               icon: Icons.workspace_premium_rounded,
               label: 'Benefits',
               subtitle: 'See what you’ve unlocked',
-              startColor: tkoOrange.withOpacity(.20),
-              endColor: tkoGold.withOpacity(.65),
+              accent: tkoOrange,
               onTap: () => _openBenefits(context),
             ),
             _PrimaryActionCard(
               icon: Icons.shopping_bag_outlined,
               label: 'Order',
               subtitle: 'Place or view orders',
-              startColor: tkoTeal.withOpacity(.18),
-              endColor: tkoTeal.withOpacity(.60),
+              accent: tkoTeal,
               onTap: () {
                 Navigator.push(
                   context,
@@ -982,16 +971,14 @@ class _ActionGrid extends StatelessWidget {
               icon: Icons.qr_code_scanner_rounded,
               label: 'Scan',
               subtitle: 'Earn & redeem fast',
-              startColor: tkoOrange.withOpacity(.22),
-              endColor: tkoBrown.withOpacity(.55),
+              accent: tkoBrown,
               onTap: () => _openQuickScan(context),
             ),
             _PrimaryActionCard(
               icon: SimpleIcons.discord,
               label: 'Discord',
               subtitle: 'Connect with the community',
-              startColor: tkoTeal.withOpacity(.16),
-              endColor: tkoTeal.withOpacity(.55),
+              accent: tkoTeal,
               onTap: () {
                 Navigator.push(
                   context,
@@ -1025,16 +1012,14 @@ class _PrimaryActionCard extends StatelessWidget {
   final IconData icon;
   final String label;
   final String subtitle;
-  final Color startColor;
-  final Color endColor;
+  final Color accent;
   final VoidCallback? onTap;
 
   const _PrimaryActionCard({
     required this.icon,
     required this.label,
     required this.subtitle,
-    required this.startColor,
-    required this.endColor,
+    required this.accent,
     this.onTap,
   });
 
@@ -1046,19 +1031,12 @@ class _PrimaryActionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(18),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white,
-              startColor,
-              endColor,
-            ],
-          ),
+          border: Border.all(color: Colors.black.withOpacity(.04)),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x19000000),
+              color: Color(0x14000000),
               blurRadius: 12,
               offset: Offset(0, 6),
             )
@@ -1071,9 +1049,9 @@ class _PrimaryActionCard extends StatelessWidget {
               height: 32,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(.92),
+                color: accent.withOpacity(.10),
               ),
-              child: Icon(icon, size: 18, color: tkoBrown),
+              child: Icon(icon, size: 18, color: accent),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -1087,7 +1065,7 @@ class _PrimaryActionCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      color: tkoBrown,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1097,7 +1075,7 @@ class _PrimaryActionCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.white.withOpacity(.94),
+                      color: Colors.black.withOpacity(.7),
                     ),
                   ),
                 ],
@@ -1149,13 +1127,8 @@ class _PillAction extends StatelessWidget {
   }
 }
 
-Widget _bubble(double size, Color c) => Container(
-  width: size,
-  height: size,
-  decoration: BoxDecoration(color: c, shape: BoxShape.circle),
-);
+// ==================== BENEFITS SHEET ====================
 
-// / Benefits sheet
 class _BenefitsSheet extends StatefulWidget {
   final int currentPoints;
   final List<_Tier> tiers;
@@ -1256,7 +1229,7 @@ class _BenefitsSheetState extends State<_BenefitsSheet>
                   },
                 ),
 
-                // DISCOUNTS
+                // Discounts
                 ListView(
                   controller: controller,
                   padding: const EdgeInsets.all(16),
@@ -1387,7 +1360,7 @@ class _DiscountsPanel extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(child: Text(key)),
               Text(
-                '$valueText%', // no minus sign
+                '$valueText%',
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
             ],
@@ -1428,8 +1401,8 @@ class _DiscountsPanel extends StatelessWidget {
   }
 }
 
+// ==================== BRAND BOTTOM NAV ====================
 
-// BRAND BOTTOM NAV
 class TkoBottomNav extends StatelessWidget {
   final int index;
   final ValueChanged<int> onChanged;
@@ -1498,7 +1471,6 @@ class TkoBottomNav extends StatelessWidget {
     );
   }
 }
-
 
 class _NavItem extends StatelessWidget {
   final IconData icon;

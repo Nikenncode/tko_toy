@@ -1,10 +1,15 @@
-// lib/settings_page.dart
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Brand colors (match the rest of the app)
+import 'main.dart' show AuthGate;
+
+
 const tkoOrange = Color(0xFFFF6A00);
 const tkoCream = Color(0xFFF7F2EC);
 const tkoBrown = Color(0xFF6A3B1A);
@@ -19,7 +24,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   String? _name;
   String? _email;
-  String? _photoUrl;
+  Uint8List? _avatarBytes;
   bool _pushEnabled = true;
   bool _loading = true;
 
@@ -32,16 +37,14 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadUser() async {
     final u = FirebaseAuth.instance.currentUser;
     if (u == null) {
-      setState(() {
-        _loading = false;
-      });
+      if (!mounted) return;
+      setState(() => _loading = false);
       return;
     }
 
-    String display =
-        u.displayName ?? u.email?.split('@').first ?? 'Player';
-
+    String display = u.displayName ?? u.email?.split('@').first ?? 'Player';
     bool push = true;
+    Uint8List? avatarBytes;
 
     try {
       final doc =
@@ -49,17 +52,24 @@ class _SettingsPageState extends State<SettingsPage> {
       final data = doc.data();
       if (data != null) {
         display = (data['displayName'] as String?) ?? display;
+
+        // 👇 match profile_page.dart: avatarBase64 stored in users/{uid}
+        final avatarBase64 = data['avatarBase64'];
+        if (avatarBase64 is String && avatarBase64.isNotEmpty) {
+          avatarBytes = base64Decode(avatarBase64);
+        }
+
         push = (data['pushEnabled'] as bool?) ?? true;
       }
     } catch (_) {
-      // ignore errors, just use defaults
+      // ignore, fall back to auth-only info
     }
 
     if (!mounted) return;
     setState(() {
       _name = display;
       _email = u.email;
-      _photoUrl = u.photoURL;
+      _avatarBytes = avatarBytes;
       _pushEnabled = push;
       _loading = false;
     });
@@ -76,8 +86,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _togglePush(bool value) async {
     setState(() => _pushEnabled = value);
+
     final u = FirebaseAuth.instance.currentUser;
     if (u == null) return;
+
     try {
       await FirebaseFirestore.instance.collection('users').doc(u.uid).set(
         {
@@ -87,19 +99,41 @@ class _SettingsPageState extends State<SettingsPage> {
         SetOptions(merge: true),
       );
     } catch (_) {
-      // If save fails, revert in UI
       if (!mounted) return;
       setState(() => _pushEnabled = !value);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not update notification setting')),
+        const SnackBar(
+          content: Text('Could not update notification setting'),
+        ),
       );
     }
   }
 
+  /// LOGOUT:
+  /// - sign out from Google
+  /// - sign out from Firebase
+  /// - reset navigation to AuthGate
   Future<void> _logout() async {
-    await FirebaseAuth.instance.signOut();
+    try {
+      try {
+        await GoogleSignIn().signOut();
+      } catch (_) {}
+
+      await FirebaseAuth.instance.signOut();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not log out: $e')),
+      );
+      return;
+    }
+
     if (!mounted) return;
-    Navigator.of(context).pop(); // main auth gate will show login
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const AuthGate()),
+          (route) => false,
+    );
   }
 
   void _openFaqs() {
@@ -111,10 +145,15 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _openWhatsapp() async {
-    // TODO: change to your number
+    // TODO: change to your real number
     final uri = Uri.parse('https://wa.me/1234567890');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open WhatsApp')),
+      );
     }
   }
 
@@ -139,35 +178,45 @@ class _SettingsPageState extends State<SettingsPage> {
 
               if (p1.isEmpty || p2.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Fill both password fields')),
+                  const SnackBar(
+                    content: Text('Fill both password fields'),
+                  ),
                 );
                 return;
               }
               if (p1.length < 6) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                      content:
-                      Text('Password must be at least 6 characters long')),
+                    content:
+                    Text('Password must be at least 6 characters long'),
+                  ),
                 );
                 return;
               }
               if (p1 != p2) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Passwords do not match')),
+                  const SnackBar(
+                    content: Text('Passwords do not match'),
+                  ),
                 );
                 return;
               }
 
               setSheetState(() => saving = true);
+
               try {
                 final u = FirebaseAuth.instance.currentUser;
                 if (u == null) {
                   throw Exception('Not signed in');
                 }
+
                 await u.updatePassword(p1);
+
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Password updated')),
+                    const SnackBar(
+                      content: Text('Password updated'),
+                    ),
                   );
                   Navigator.of(context).pop();
                 }
@@ -285,7 +334,7 @@ class _SettingsPageState extends State<SettingsPage> {
       context,
       MaterialPageRoute(builder: (_) => const PersonalInfoPage()),
     );
-    // Refresh header when coming back
+    // Reload user (name, email, avatarBase64) when coming back
     await _loadUser();
   }
 
@@ -303,8 +352,10 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             // HEADER
             Padding(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
+              ),
               child: Row(
                 children: [
                   const Text(
@@ -323,10 +374,12 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
 
-            // CARD WITH AVATAR + NAME
+            // USER CARD
             Padding(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 4,
+              ),
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -345,12 +398,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     CircleAvatar(
                       radius: 26,
                       backgroundColor: tkoCream,
-                      backgroundImage: (_photoUrl != null &&
-                          _photoUrl!.trim().isNotEmpty)
-                          ? NetworkImage(_photoUrl!)
+                      backgroundImage: _avatarBytes != null
+                          ? MemoryImage(_avatarBytes!)
                           : null,
-                      child: (_photoUrl == null ||
-                          _photoUrl!.trim().isEmpty)
+                      child: _avatarBytes == null
                           ? Text(
                         _initials(name),
                         style: const TextStyle(
@@ -401,7 +452,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
             const SizedBox(height: 12),
 
-            // MAIN LIST
+            // MAIN CONTENT
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -474,7 +525,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
                     const SizedBox(height: 20),
 
-                    // LOGOUT
+                    // LOGOUT BUTTON
                     TextButton.icon(
                       onPressed: _logout,
                       icon: const Icon(
@@ -526,9 +577,15 @@ class _SettingTile extends StatelessWidget {
         leading: Icon(icon, color: tkoBrown),
         title: Text(
           title,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        trailing: const Icon(Icons.chevron_right_rounded, color: Colors.black38),
+        trailing: const Icon(
+          Icons.chevron_right_rounded,
+          color: Colors.black38,
+        ),
         onTap: onTap,
       ),
     );
@@ -561,7 +618,10 @@ class _SettingSwitchTile extends StatelessWidget {
         leading: Icon(icon, color: tkoBrown),
         title: Text(
           title,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         trailing: Switch(
           value: value,
@@ -574,7 +634,7 @@ class _SettingSwitchTile extends StatelessWidget {
   }
 }
 
-/// PERSONAL INFO PAGE (like middle screen of your design)
+/// PERSONAL INFO PAGE (same as before, only text details)
 class PersonalInfoPage extends StatefulWidget {
   const PersonalInfoPage({super.key});
 
@@ -615,7 +675,6 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
       }
     } catch (_) {}
 
-    // If first/last empty, try to split displayName
     if (first.isEmpty && last.isEmpty) {
       final dn = u.displayName ?? '';
       final parts = dn.trim().split(RegExp(r'\s+'));
@@ -658,7 +717,6 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
       final displayName =
       (first.isNotEmpty || last.isNotEmpty) ? '$first $last'.trim() : null;
 
-      // Update auth profile
       if (displayName != null && displayName.isNotEmpty) {
         await u.updateDisplayName(displayName);
       }
@@ -666,7 +724,6 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
         await u.updateEmail(email);
       }
 
-      // Update Firestore users doc
       await FirebaseFirestore.instance.collection('users').doc(u.uid).set(
         {
           'firstName': first,
@@ -733,27 +790,7 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
           child: Column(
             children: [
-              // Avatar (read-only, just to match design)
-              CircleAvatar(
-                radius: 44,
-                backgroundColor: tkoCream,
-                backgroundImage: FirebaseAuth.instance.currentUser?.photoURL !=
-                    null &&
-                    FirebaseAuth.instance.currentUser!.photoURL!
-                        .trim()
-                        .isNotEmpty
-                    ? NetworkImage(
-                    FirebaseAuth.instance.currentUser!.photoURL!)
-                    : null,
-                child: (FirebaseAuth.instance.currentUser?.photoURL == null ||
-                    FirebaseAuth.instance.currentUser!.photoURL!
-                        .trim()
-                        .isEmpty)
-                    ? const Icon(Icons.person, size: 40, color: tkoBrown)
-                    : null,
-              ),
-              const SizedBox(height: 24),
-
+              // Just text fields, avatar is handled by profile card
               _RoundedTextField(
                 controller: _first,
                 label: 'First Name',
@@ -775,7 +812,6 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
                 label: 'Mobile',
                 keyboardType: TextInputType.phone,
               ),
-
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
@@ -847,7 +883,10 @@ class _RoundedTextField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24),
-          borderSide: const BorderSide(color: tkoOrange, width: 1.4),
+          borderSide: const BorderSide(
+            color: tkoOrange,
+            width: 1.4,
+          ),
         ),
       ),
     );
