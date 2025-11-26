@@ -12,16 +12,15 @@ class LoginSignupPage extends StatefulWidget {
 
 class _LoginSignupPageState extends State<LoginSignupPage>
     with SingleTickerProviderStateMixin {
-
-
+  // Brand colors
   static const tkoOrange = Color(0xFFFF6A00);
   static const tkoCream = Color(0xFFF7F2EC);
   static const tkoBrown = Color(0xFF6A3B1A);
   static const tkoTeal = Color(0xFF00B8A2);
   static const tkoGold = Color(0xFFFFD23F);
 
-  late final TabController _tab = TabController(length: 2, vsync: this);
-
+  late final TabController _tab;
+  int _currentTab = 0;
 
   final inEmail = TextEditingController();
   final inPass = TextEditingController();
@@ -38,7 +37,17 @@ class _LoginSignupPageState extends State<LoginSignupPage>
   void _toast(String m) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
 
-
+  @override
+  void initState() {
+    super.initState();
+    _tab = TabController(length: 2, vsync: this);
+    _tab.addListener(() {
+      if (!_tab.indexIsChanging) return;
+      setState(() {
+        _currentTab = _tab.index;
+      });
+    });
+  }
 
   Future<void> _signInEmail() async {
     await Member2EmailAuth.signInEmail(
@@ -102,8 +111,9 @@ class _LoginSignupPageState extends State<LoginSignupPage>
 
   @override
   Widget build(BuildContext context) {
+    final isSignIn = _currentTab == 0;
+
     return Scaffold(
-      // base color under everything
       backgroundColor: tkoCream,
       body: Stack(
         children: [
@@ -116,204 +126,365 @@ class _LoginSignupPageState extends State<LoginSignupPage>
 
           Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 520),
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(.96),
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x1A000000),
-                        blurRadius: 24,
-                        offset: Offset(0, 14),
+                constraints: const BoxConstraints(maxWidth: 400), // MEDIUM WIDTH
+                child: TweenAnimationBuilder<double>(
+                  key: ValueKey(_currentTab),
+                  tween: Tween(begin: 0.97, end: 1.0),
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOut,
+                  builder: (context, scale, child) {
+                    return Transform.scale(
+                      scale: scale,
+                      child: child,
+                    );
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOut,
+                    padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(.97),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        width: 1.2,
+                        color: isSignIn
+                            ? tkoOrange.withOpacity(.5)
+                            : tkoTeal.withOpacity(.5),
                       ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        height: 80,
-                        child: Image.asset(
-                          'assets/branding/tko_logo.png',
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const SizedBox(),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (isSignIn ? tkoOrange : tkoTeal)
+                              .withOpacity(0.18),
+                          blurRadius: 18,
+                          spreadRadius: 1,
+                          offset: const Offset(0, 10),
                         ),
-                      ),
-                      const SizedBox(height: 24),
+                        const BoxShadow(
+                          color: Color(0x14000000),
+                          blurRadius: 18,
+                          offset: Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Logo
+                        SizedBox(
+                          height: 64,
+                          child: Image.asset(
+                            'assets/branding/tko_logo.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const SizedBox(),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
 
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: OutlinedButton(
-                          onPressed: loadingGoogle ? null : _google,
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(
-                              color: Colors.black.withOpacity(.12),
+                        // Small pill + animated subtitle
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(.03),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isSignIn
+                                        ? Icons.login_rounded
+                                        : Icons.stars_rounded,
+                                    size: 14,
+                                    color: isSignIn ? tkoBrown : tkoTeal,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    isSignIn
+                                        ? 'Welcome back'
+                                        : 'Create your profile',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black.withOpacity(.65),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            foregroundColor: Colors.black,
-                            textStyle: const TextStyle(
-                              fontWeight: FontWeight.w600,
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 220),
+                          switchInCurve: Curves.easeOut,
+                          switchOutCurve: Curves.easeIn,
+                          child: Text(
+                            isSignIn
+                                ? 'Sign in to your TKO account'
+                                : 'Sign up to join TKO Toy',
+                            key: ValueKey(isSignIn),
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black.withOpacity(.85),
                             ),
                           ),
-                          child: loadingGoogle
-                              ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Google button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: OutlinedButton(
+                            onPressed: loadingGoogle ? null : _google,
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: Colors.black.withOpacity(.14),
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              foregroundColor: Colors.black,
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              backgroundColor: Colors.white,
                             ),
-                          )
-                              : const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.g_mobiledata_rounded, size: 26),
-                              SizedBox(width: 8),
-                              Text('Sign in with Google'),
+                            child: loadingGoogle
+                                ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                                : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.g_mobiledata_rounded, size: 24),
+                                SizedBox(width: 8),
+                                Text('Continue with Google'),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Divider
+                        Row(
+                          children: const [
+                            Expanded(child: Divider()),
+                            SizedBox(width: 8),
+                            Text(
+                              'or email',
+                              style: TextStyle(color: Colors.black54),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(child: Divider()),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Tab pill
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(.03),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: TabBar(
+                            controller: _tab,
+                            indicator: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              gradient: LinearGradient(
+                                colors: isSignIn
+                                    ? [tkoOrange.withOpacity(.18), tkoGold]
+                                    : [tkoTeal.withOpacity(.16), tkoTeal],
+                              ),
+                            ),
+                            labelColor: Colors.black,
+                            unselectedLabelColor: Colors.black54,
+                            labelStyle: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                            unselectedLabelStyle: const TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                            tabs: const [
+                              Tab(text: 'Sign in'),
+                              Tab(text: 'Sign up'),
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 14),
+                        const SizedBox(height: 10),
 
-                      Row(
-                        children: const [
-                          Expanded(child: Divider()),
-                          SizedBox(width: 8),
-                          Text(
-                            'or email',
-                            style: TextStyle(color: Colors.black54),
-                          ),
-                          SizedBox(width: 8),
-                          Expanded(child: Divider()),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(.04),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: TabBar(
-                          controller: _tab,
-                          indicator: BoxDecoration(
-                            color: tkoOrange.withOpacity(.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          labelColor: tkoBrown,
-                          unselectedLabelColor: Colors.black54,
-                          tabs: const [
-                            Tab(text: 'Sign in'),
-                            Tab(text: 'Sign up'),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      SizedBox(
-                        height: 330,
-                        child: TabBarView(
-                          controller: _tab,
-                          children: [
-
-                            Column(
-                              children: [
-                                _Field(
-                                  label: 'Email',
-                                  controller: inEmail,
-                                  keyboard: TextInputType.emailAddress,
-                                ),
-                                const SizedBox(height: 10),
-                                _Field(
-                                  label: 'Password',
-                                  controller: inPass,
-                                  obscure: true,
-                                ),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
-                                    onPressed: _forgotPassword,
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: tkoBrown,
-                                    ),
-                                    child: const Text('Forgot password?'),
+                        // Forms — SMALLER HEIGHT
+                        SizedBox(
+                          height: 290, // was 340
+                          child: TabBarView(
+                            controller: _tab,
+                            children: [
+                              // SIGN IN
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _Field(
+                                    label: 'Email',
+                                    controller: inEmail,
+                                    keyboard: TextInputType.emailAddress,
                                   ),
-                                ),
-                                const SizedBox(height: 6),
-                                _BrandButton(
-                                  text: 'Continue',
-                                  onPressed:
-                                  loadingEmail ? null : _signInEmail,
-                                ),
-                              ],
-                            ),
+                                  const SizedBox(height: 8),
+                                  _Field(
+                                    label: 'Password',
+                                    controller: inPass,
+                                    obscure: true,
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: _forgotPassword,
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: tkoBrown,
+                                      ),
+                                      child: const Text('Forgot password?'),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  _BrandButton(
+                                    text: 'Continue',
+                                    onPressed:
+                                    loadingEmail ? null : _signInEmail,
+                                  ),
+                                  const Spacer(),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Text(
+                                        'New here? ',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black54,
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: () => _tab.animateTo(1),
+                                        child: const Text(
+                                          'Create an account',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: tkoBrown,
+                                            decoration:
+                                            TextDecoration.underline,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
 
-                            Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _Field(
-                                        label: 'First name',
-                                        controller: firstName,
+                              // SIGN UP
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _Field(
+                                          label: 'First name',
+                                          controller: firstName,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: _Field(
-                                        label: 'Last name',
-                                        controller: lastName,
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: _Field(
+                                          label: 'Last name',
+                                          controller: lastName,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                _Field(
-                                  label: 'Email',
-                                  controller: upEmail,
-                                  keyboard: TextInputType.emailAddress,
-                                ),
-                                const SizedBox(height: 10),
-                                _Field(
-                                  label: 'Password (min 6)',
-                                  controller: upPass1,
-                                  obscure: true,
-                                ),
-                                const SizedBox(height: 10),
-                                _Field(
-                                  label: 'Confirm password',
-                                  controller: upPass2,
-                                  obscure: true,
-                                ),
-                                const SizedBox(height: 8),
-                                _BrandButton(
-                                  text: 'Create account',
-                                  onPressed:
-                                  loadingEmail ? null : _signUpEmail,
-                                ),
-                              ],
-                            ),
-                          ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _Field(
+                                    label: 'Email',
+                                    controller: upEmail,
+                                    keyboard: TextInputType.emailAddress,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _Field(
+                                    label: 'Password (min 6)',
+                                    controller: upPass1,
+                                    obscure: true,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _Field(
+                                    label: 'Confirm password',
+                                    controller: upPass2,
+                                    obscure: true,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  _BrandButton(
+                                    text: 'Create account',
+                                    onPressed:
+                                    loadingEmail ? null : _signUpEmail,
+                                  ),
+                                  const Spacer(),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Text(
+                                        'Already have an account? ',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black54,
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: () => _tab.animateTo(0),
+                                        child: const Text(
+                                          'Sign in',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: tkoBrown,
+                                            decoration:
+                                            TextDecoration.underline,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
+                        const SizedBox(height: 6),
 
-                      Text(
-                        'By continuing you agree to TKO’s Terms & Privacy.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: Colors.black54),
-                      ),
-                    ],
+                        Text(
+                          'By continuing you agree to TKO’s Terms & Privacy.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: Colors.black54),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -325,7 +496,7 @@ class _LoginSignupPageState extends State<LoginSignupPage>
   }
 }
 
-
+/// ---------------- AUTH HELPERS ----------------
 
 class Member2EmailAuth {
   static Future<void> _ensureUserDoc(User user,
@@ -462,7 +633,6 @@ class Member1GoogleAuth {
       final result =
       await FirebaseAuth.instance.signInWithCredential(cred);
 
-      // Reuse Member 2's Firestore user doc helper
       await Member2EmailAuth._ensureUserDoc(result.user!);
     } catch (_) {
       showToast(
@@ -473,6 +643,7 @@ class Member1GoogleAuth {
   }
 }
 
+/// ---------------- SMALL WIDGETS ----------------
 
 class _Field extends StatelessWidget {
   final String label;
@@ -503,7 +674,7 @@ class _Field extends StatelessWidget {
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
-          vertical: 14,
+          vertical: 12,
         ),
       ),
     );
@@ -523,7 +694,7 @@ class _BrandButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 48,
+      height: 44,
       child: FilledButton(
         onPressed: onPressed,
         style: FilledButton.styleFrom(
