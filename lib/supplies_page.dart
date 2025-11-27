@@ -103,22 +103,24 @@ class SuppliesPage extends StatelessWidget {
               child: Row(
                 children: [
                   if (item.firebaseId != null)
-                    FutureBuilder<String?>(
-                      future: loadFirebaseImage(item.firebaseId!),
-                      builder: (context, snap) {
-                        final img = snap.data ?? item.image;
-
-                        return ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.network(
-                            img.isNotEmpty ? img : "https://via.placeholder.com/70",
-                            width: 70,
-                            height: 70,
-                            fit: BoxFit.cover,
-                          ),
-                        );
-                      },
+                    SizedBox(
+                      width: 70,
+                      height: 70,
+                      child: FutureBuilder<String?>(
+                        future: loadFirebaseImage(item.firebaseId!),
+                        builder: (context, snap) {
+                          final img = snap.data ?? item.image;
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              img.isNotEmpty ? img : "https://via.placeholder.com/70",
+                              fit: BoxFit.cover,
+                            ),
+                          );
+                        },
+                      ),
                     )
+
                   else
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
@@ -135,6 +137,9 @@ class SuppliesPage extends StatelessWidget {
                   Expanded(
                     child: Text(
                       item.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: true,
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -143,7 +148,10 @@ class SuppliesPage extends StatelessWidget {
                     ),
                   ),
 
-                  const Icon(Icons.chevron_right, color: Colors.black54),
+                  SizedBox(
+                    width: 30,
+                    child: Icon(Icons.chevron_right, color: Colors.black54),
+                  ),
                 ],
               ),
             ),
