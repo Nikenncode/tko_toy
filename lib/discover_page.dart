@@ -37,7 +37,7 @@ class OffersListScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       bottomNavigationBar: TkoBottomNav(
-        index: 2,
+        index: -1,
         onChanged: (newIndex) {
           switch (newIndex) {
             case 0:

@@ -39,42 +39,28 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     });
   }
 
-  // THEME INDEXES (front + back)
   int _selectedFrontThemeIndex = 0;
   int _selectedBackThemeIndex = 0;
 
   final List<List<Color>> frontThemes = const [
-    // 0 – original brown
     [Color(0xFF3B2A1A), Color(0xFF15100C)],
-    // 1 – teal / blue
     [Color(0xFF006F7A), Color(0xFF021826)],
-    // 2 – magenta / purple
     [Color(0xFF542058), Color(0xFF160821)],
-    // 3 – ember orange
     [Color(0xFF7A3400), Color(0xFF1E0B00)],
-    // 4 – deep space gray
     [Color(0xFF232733), Color(0xFF050608)],
   ];
 
-  /// Back card themes (includes white)
+  //Back card themes
   final List<List<Color>> backThemes = const [
-    // 0 – white / soft gray
     [Color(0xFFFFFFFF), Color(0xFFF2F2F2)],
-    // 1 – original brown
     [Color(0xFF3A2C1F), Color(0xFF15110D)],
-    // 2 – teal
     [Color(0xFF00B8A2), Color(0xFF007F6C)],
-    // 3 – orange
     [Color(0xFFFF6A00), Color(0xFFB24A00)],
-    // 4 – purple
     [Color(0xFF8A2BE2), Color(0xFF4B0082)],
-    // 5 – pink
     [Color(0xFFFFC0CB), Color(0xFFFF69B4)],
-    // 6 – black
     [Color(0xFF000000), Color(0xFF1A1A1A)],
   ];
 
-  // Profile fields
   String? _displayName;
   String? _bio;
   String? _funFact;
@@ -87,7 +73,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
   Uint8List? _avatarBytes;
   File? _avatarFile;
 
-  // Editing controllers
   late final TextEditingController _nameCtrl;
   late final TextEditingController _bioCtrl;
   late final TextEditingController _funFactCtrl;
@@ -99,7 +84,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
   final _picker = ImagePicker();
   bool _saving = false;
 
-  // Card capture key
   final GlobalKey _cardKey = GlobalKey();
 
   @override
@@ -128,8 +112,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     _xCtrl.dispose();
     super.dispose();
   }
-
-  // ---------- LOAD ----------
 
   void _loadFromAuth() {
     final u = FirebaseAuth.instance.currentUser;
@@ -192,8 +174,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     );
   }
 
-  // ---------- AVATAR ----------
-
   Future<void> _saveAvatarToFirestore(Uint8List bytes) async {
     final u = FirebaseAuth.instance.currentUser;
     if (u == null) return;
@@ -222,7 +202,7 @@ class _ProfileCardTabState extends State<ProfileCardTab>
   Future<void> _pickAvatar() async {
     final xFile = await _picker.pickImage(
       source: ImageSource.gallery,
-      maxWidth: 600,  // keep small for Firestore
+      maxWidth: 600,
     );
     if (xFile == null) return;
 
@@ -230,14 +210,12 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     final bytes = await file.readAsBytes();
 
     setState(() {
-      _avatarFile = file;   // local preview
-      _avatarBytes = bytes; // for display after reload
+      _avatarFile = file;
+      _avatarBytes = bytes;
     });
 
     await _saveAvatarToFirestore(bytes);
   }
-
-  // ---------- THEMES ----------
 
   void _cycleFrontTheme() {
     setState(() {
@@ -254,8 +232,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     });
     _saveThemeIndexes();
   }
-
-  // ---------- EDIT SHEET ----------
 
   void _openEditSheet() {
     final name = _displayName ?? '';
@@ -307,7 +283,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
                   ),
                   const SizedBox(height: 12),
 
-                  // Avatar row
                   Row(
                     children: [
                       GestureDetector(
@@ -460,7 +435,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     final discord = _discordCtrl.text.trim();
     final x = _xCtrl.text.trim();
 
-    // figure out final display name
     final fallback =
         _displayName ?? u.displayName ?? u.email?.split('@').first ?? 'Player';
     final newDisplayName = typedName.isEmpty ? fallback : typedName;
@@ -476,16 +450,13 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     });
 
     try {
-      // update Firebase Auth displayName
       await u.updateDisplayName(newDisplayName);
 
-      // avatar base64 (if available)
       String? avatarBase64;
       if (_avatarBytes != null) {
         avatarBase64 = base64Encode(_avatarBytes!);
       }
 
-      // main users/{uid} doc
       await FirebaseFirestore.instance.collection('users').doc(u.uid).set(
         {
           'displayName': newDisplayName,
@@ -495,7 +466,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
         SetOptions(merge: true),
       );
 
-      // profile card doc
       await FirebaseFirestore.instance
           .doc('users/${u.uid}/profile/card')
           .set(
@@ -520,8 +490,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
       Navigator.of(context).maybePop();
     }
   }
-
-  // ---------- LINKS ----------
 
   String? _handleToUrl(String? handle, String base) {
     if (handle == null || handle.trim().isEmpty) return null;
@@ -554,8 +522,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
       );
     }
   }
-
-  // ---------- SHARE CARD ----------
 
   Future<void> _captureAndShareCard() async {
     try {
@@ -604,8 +570,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
       );
     }
   }
-
-  // ---------- BUILD ----------
 
   String _initialsFromName(String name) {
     final parts = name.trim().split(RegExp(r'\s+'));
@@ -703,8 +667,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
           ),
 
           const SizedBox(height: 4),
-
-          // Card area
           Expanded(
             child: Center(
               child: LayoutBuilder(
@@ -760,7 +722,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
             ),
           ),
 
-          // Bottom controls
           Padding(
             padding:
             const EdgeInsets.symmetric(horizontal: 16).copyWith(bottom: 10),
@@ -869,7 +830,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // header row
             Row(
               children: [
                 Container(
@@ -916,8 +876,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
             ),
 
             const SizedBox(height: 16),
-
-            // hero image
             Expanded(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(18),
@@ -1132,8 +1090,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     );
   }
 }
-
-// ---------- SMALL WIDGETS / PAINTERS ----------
 
 class _InfoLine extends StatelessWidget {
   final IconData icon;

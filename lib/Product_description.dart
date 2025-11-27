@@ -19,8 +19,6 @@ class ProductDetailsPage extends StatefulWidget {
 class _ProductDetailsPageState extends State<ProductDetailsPage> {
   int _selectedImageIndex = 0;
 
-  // ---------------- GETTERS ----------------
-
   List<String> get _images {
     final raw = widget.product['images'];
     if (raw is List) return raw.whereType<String>().toList();
@@ -66,16 +64,20 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
   bool _validImage(String? url) => url != null && url.startsWith("http");
 
-  Widget _noImage() {
+  Widget _noImageWidget() {
     return Container(
       color: Colors.grey.shade200,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.image_not_supported, size: 45, color: Colors.grey.shade400),
-          const SizedBox(height: 6),
-          Text("No Image", style: TextStyle(color: Colors.grey.shade600)),
-        ],
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.image_not_supported,
+                size: 50, color: Colors.grey.shade500),
+            const SizedBox(height: 6),
+            Text("No image",
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+          ],
+        ),
       ),
     );
   }
@@ -91,8 +93,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       Share.share("$title\nPrice: $price\n$url");
     }
   }
-
-  // ---------------- CART FUNCTION ----------------
 
   Future<void> _addToCart() async {
     final price = _price;
@@ -181,15 +181,16 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: Container(
-                height: MediaQuery.of(context).size.width * 0.80,
+                height: MediaQuery.of(context).size.width * 0.85,
+                width: double.infinity,
                 color: Colors.white,
                 child: _validImage(mainImg)
                     ? Image.network(
                   mainImg!,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => _noImage(),
+                  errorBuilder: (_, __, ___) => _noImageWidget(),
                 )
-                    : _noImage(),
+                    : _noImageWidget(),
               ),
             ),
 

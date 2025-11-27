@@ -81,27 +81,26 @@ class ProductsPage extends StatelessWidget {
         onChanged: (newIndex) {
           switch (newIndex) {
             case 0:
-              Navigator.pushReplacement(
+              Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (_) => const HomePage()),
+                    (route) => false,
               );
               break;
 
             case 1:
-              Navigator.pushReplacement(
+              Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const HomePage(initialTab: 1),
-                ),
+                MaterialPageRoute(builder: (_) => const HomePage(initialTab: 1)),
+                    (route) => false,
               );
               break;
 
             case 3:
-              Navigator.pushReplacement(
+              Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const HomePage(initialTab: 3),
-                ),
+                MaterialPageRoute(builder: (_) => const HomePage(initialTab: 3)),
+                    (route) => false,
               );
               break;
           }
