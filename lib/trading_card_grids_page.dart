@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'Product_description.dart';
 import 'home_page.dart';
+import 'like_service.dart';
 
 class CardsGridPage extends StatefulWidget {
   final String selectedTab;
@@ -603,40 +604,52 @@ class _CardsGridPageState extends State<CardsGridPage>
                                     : _noImageBox(),
                               ),
                             ),
+
                             Positioned(
                               top: 10,
                               right: 10,
-                              child: GestureDetector(
-                                onTap: () {
-                                  setStateTile(
-                                          () => isLiked = !isLiked);
+                              child: StatefulBuilder(
+                                builder: (context, setState) {
+                                  return FutureBuilder<bool>(
+                                    future: LikeService.isLiked(data["id"] ?? data["title"]),
+                                    builder: (context, snap) {
+                                      bool isLiked = snap.data ?? false;
+                                      final productId = data["id"] ?? data["title"];
+
+                                      return GestureDetector(
+                                        onTap: () async {
+                                          if (isLiked) {
+                                            await LikeService.unlikeProduct(productId);
+                                          } else {
+                                            await LikeService.likeProduct({...data, "id": productId});
+                                          }
+
+                                          setState(() {});
+                                        },
+                                        child: Container(
+                                          height: 34,
+                                          width: 34,
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.1),
+                                                blurRadius: 6,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Icon(
+                                            isLiked ? Icons.favorite : Icons.favorite_border,
+                                            size: 20,
+                                            color: isLiked ? Colors.red : Colors.black,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  );
                                 },
-                                child: Container(
-                                  height: 34,
-                                  width: 34,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black
-                                            .withOpacity(0.1),
-                                        blurRadius: 6,
-                                        offset:
-                                        const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Icon(
-                                    isLiked
-                                        ? Icons.favorite
-                                        : Icons.favorite_border,
-                                    size: 20,
-                                    color: isLiked
-                                        ? Colors.red
-                                        : Colors.black,
-                                  ),
-                                ),
                               ),
                             ),
                           ],

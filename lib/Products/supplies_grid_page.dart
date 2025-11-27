@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'Product_description.dart';
-import 'home_page.dart';
+import '../Product_description.dart';
+import '../home_page.dart';
+import '../like_service.dart';
 
 class SuppliesGridPage extends StatefulWidget {
   final String selectedTab;
@@ -480,38 +481,79 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
                             ),
                             child: Container(
                               height: 150,
+                              width: double.infinity,
                               color: Colors.white,
                               child: imageUrl == null
                                   ? Center(
-                                child: Icon(Icons.image_not_supported,
-                                    size: 40, color: Colors.grey),
+                                child: Column(
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.image_not_supported,
+                                        size: 40,
+                                        color: Colors.grey.shade400),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "No image",
+                                      style: TextStyle(
+                                          color: Colors.grey.shade500,
+                                          fontSize: 12),
+                                    ),
+                                  ],
+                                ),
                               )
-                                  : Image.network(imageUrl, fit: BoxFit.contain),
+                                  : Image.network(
+                                imageUrl,
+                                fit: BoxFit.contain,
+                              ),
                             ),
                           ),
+
                           Positioned(
                             top: 10,
                             right: 10,
-                            child: GestureDetector(
-                              onTap: () => update(() => liked = !liked),
-                              child: Container(
-                                height: 34,
-                                width: 34,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 6,
-                                    )
-                                  ],
-                                ),
-                                child: Icon(
-                                  liked ? Icons.favorite : Icons.favorite_border,
-                                  color: liked ? Colors.red : Colors.black,
-                                ),
-                              ),
+                            child: StatefulBuilder(
+                              builder: (context, setState) {
+                                return FutureBuilder<bool>(
+                                  future: LikeService.isLiked(data["id"] ?? data["title"]),
+                                  builder: (context, snap) {
+                                    bool isLiked = snap.data ?? false;
+                                    final productId = data["id"] ?? data["title"];
+
+                                    return GestureDetector(
+                                      onTap: () async {
+                                        if (isLiked) {
+                                          await LikeService.unlikeProduct(productId);
+                                        } else {
+                                          await LikeService.likeProduct({...data, "id": productId});
+                                        }
+
+                                        setState(() {});
+                                      },
+                                      child: Container(
+                                        height: 34,
+                                        width: 34,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.1),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Icon(
+                                          isLiked ? Icons.favorite : Icons.favorite_border,
+                                          size: 20,
+                                          color: isLiked ? Colors.red : Colors.black,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
                             ),
                           ),
                         ],

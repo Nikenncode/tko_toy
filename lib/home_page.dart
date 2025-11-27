@@ -14,6 +14,7 @@ import 'discover_page.dart';
 import 'notification_service.dart';
 import 'notifications_page.dart';
 import 'cart_page.dart';
+import 'liked_page.dart';
 
 const tkoOrange = Color(0xFFFF6A00);
 const tkoCream = Color(0xFFF7F2EC);
@@ -55,7 +56,7 @@ class _HomePageState extends State<HomePage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      debugPrint('FCM onMessage received!');
+      debugPrint('🔥 FCM onMessage received!');
       final notif = message.notification;
 
       if (uid != null && notif != null) {
@@ -84,7 +85,6 @@ class _HomePageState extends State<HomePage> {
     final pages = <Widget>[
       const _HomeTab(),
       const MembershipQRPage(),
-      const _DiscoverTab(),
       const ProfileCardTab(),
     ];
 
@@ -156,8 +156,6 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// ==================== HOME TAB ====================
-
 class _HomeTab extends StatelessWidget {
   const _HomeTab();
 
@@ -177,7 +175,6 @@ class _HomeTab extends StatelessWidget {
 
     return Stack(
       children: [
-        // soft background: cream → white
         Positioned.fill(
           child: Container(
             decoration: const BoxDecoration(
@@ -363,7 +360,7 @@ Widget _softHalo({required double size, required Color color}) {
   );
 }
 
-// ==================== POSTERS ====================
+//POSTERS
 
 class _Poster {
   final String id, title, imageUrl, subtitle, ctaText, deeplink;
@@ -536,7 +533,6 @@ class _PosterCard extends StatelessWidget {
                     ),
                   ),
                   onPressed: () {
-                    // TODO: open item.deeplink or route
                   },
                   child: Text(
                     item.ctaText.isEmpty ? 'Details' : item.ctaText,
@@ -550,40 +546,6 @@ class _PosterCard extends StatelessWidget {
     );
   }
 }
-
-// ==================== DISCOVER TAB (simple list) ====================
-
-class _DiscoverTab extends StatelessWidget {
-  const _DiscoverTab();
-
-  @override
-  Widget build(BuildContext context) {
-    final items = List.generate(
-      8,
-          (i) => ('Bonus ${100 + i * 25} pts', 'On selected items this week'),
-    );
-    return ListView.separated(
-      padding: const EdgeInsets.only(top: 8),
-      itemCount: items.length,
-      itemBuilder: (_, i) {
-        final item = items[i];
-        return ListTile(
-          leading: const Icon(Icons.local_offer_outlined),
-          title: Text(
-            item.$1,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-          subtitle: Text(item.$2),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () {},
-        );
-      },
-      separatorBuilder: (_, __) => const Divider(height: 1),
-    );
-  }
-}
-
-// ==================== TIER / PERKS MODEL ====================
 
 class _Tier {
   final String name;
@@ -627,8 +589,7 @@ int? _nextThreshold(List<_Tier> tiers, int pts) {
 int _tierIndexByName(List<_Tier> tiers, String name) =>
     tiers.indexWhere((t) => t.name.toLowerCase() == name.toLowerCase());
 
-// ==================== TIER CARD (lux solid style) ====================
-
+//IER CARD
 class _TierCard extends StatelessWidget {
   final String tier;
   final int yearPoints;
@@ -692,12 +653,10 @@ class _TierCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // LEFT: text + progress
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // small pill
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
@@ -798,7 +757,6 @@ class _TierCard extends StatelessWidget {
 
               const SizedBox(width: 14),
 
-              // RIGHT: emblem only (🔻 Upgrade button removed)
               _TierEmblem(
                 accent: _tierColor,
                 compact: compact,
@@ -868,8 +826,6 @@ class _TierEmblem extends StatelessWidget {
     );
   }
 }
-
-// ==================== ACTION GRID ====================
 
 class _ActionGrid extends StatelessWidget {
   final int yearPts;
@@ -996,18 +952,35 @@ class _ActionGrid extends StatelessWidget {
         const SizedBox(height: 14),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            _PillAction(
+          children: [
+            const _PillAction(
               icon: Icons.history,
               label: 'Activity',
             ),
-            SizedBox(width: 10),
-            _PillAction(
+
+            const SizedBox(width: 10),
+
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const OffersListScreen()),
+                );
+              },
+              child: const _PillAction(
+                icon: Icons.auto_awesome,
+                label: 'Discover',
+              ),
+            ),
+
+            const SizedBox(width: 10),
+
+            const _PillAction(
               icon: Icons.support_agent,
               label: 'Support',
             ),
           ],
-        ),
+        )
       ],
     );
   }
@@ -1132,7 +1105,7 @@ class _PillAction extends StatelessWidget {
   }
 }
 
-// ==================== BENEFITS SHEET ====================
+//BENEFITS SHEET
 
 class _BenefitsSheet extends StatefulWidget {
   final int currentPoints;
@@ -1406,7 +1379,7 @@ class _DiscountsPanel extends StatelessWidget {
   }
 }
 
-// ==================== BRAND BOTTOM NAV ====================
+//BOTTOM NAV
 
 class TkoBottomNav extends StatelessWidget {
   final int index;
@@ -1450,15 +1423,15 @@ class TkoBottomNav extends StatelessWidget {
               onTap: () => onChanged(1),
             ),
             _NavItem(
-              icon: Icons.auto_awesome_outlined,
-              activeIcon: Icons.auto_awesome,
-              label: 'Discover',
+              icon: Icons.favorite_border,
+              activeIcon: Icons.favorite,
+              label: 'Wishlist',
               isActive: index == 2,
               onTap: () {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const OffersListScreen(),
+                    builder: (_) => const LikedPage(),
                   ),
                 );
               },

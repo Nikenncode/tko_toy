@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'Product_description.dart';
 import 'home_page.dart';
+import 'like_service.dart';
 
 class ToySearchDelegate extends SearchDelegate {
   final String collection;
@@ -454,82 +455,144 @@ class _ToysGridPageState extends State<ToysGridPage>
                   ),
                 );
               },
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border:
-                  Border.all(color: Colors.grey.shade300, width: 1),
-                  color: Colors.white,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          topRight: Radius.circular(16)),
-                      child: Container(
-                        height: 150,
-                        width: double.infinity,
-                        color: Colors.white,
-                        child: (imageUrl != null &&
-                            imageUrl.startsWith("http"))
-                            ? Image.network(imageUrl, fit: BoxFit.contain)
-                            : Column(
-                          mainAxisAlignment:
-                          MainAxisAlignment.center,
+              child: StatefulBuilder(
+                builder: (context, setState) {
+                  bool isLiked = false;
+
+                  return Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade300, width: 1),
+                      color: Colors.white,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Stack(
                           children: [
-                            Icon(Icons.image_not_supported,
-                                size: 40,
-                                color: Colors.grey.shade400),
-                            const SizedBox(height: 4),
-                            Text("No image",
-                                style: TextStyle(
-                                    color: Colors.grey.shade500,
-                                    fontSize: 12)),
+                            ClipRRect(
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(16),
+                                topRight: Radius.circular(16),
+                              ),
+                              child: Container(
+                                height: 150,
+                                width: double.infinity,
+                                color: Colors.white,
+                                child: imageUrl == null
+                                    ? Center(
+                                  child: Column(
+                                    mainAxisAlignment:
+                                    MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.image_not_supported,
+                                          size: 40,
+                                          color: Colors.grey.shade400),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        "No image",
+                                        style: TextStyle(
+                                            color: Colors.grey.shade500,
+                                            fontSize: 12),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                                    : Image.network(
+                                  imageUrl,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+
+                            Positioned(
+                              top: 10,
+                              right: 10,
+                              child: StatefulBuilder(
+                                builder: (context, setState) {
+                                  return FutureBuilder<bool>(
+                                    future: LikeService.isLiked(data["id"] ?? data["title"]),
+                                    builder: (context, snap) {
+                                      bool isLiked = snap.data ?? false;
+                                      final productId = data["id"] ?? data["title"];
+
+                                      return GestureDetector(
+                                        onTap: () async {
+                                          if (isLiked) {
+                                            await LikeService.unlikeProduct(productId);
+                                          } else {
+                                            await LikeService.likeProduct({...data, "id": productId});
+                                          }
+
+                                          setState(() {});
+                                        },
+                                        child: Container(
+                                          height: 34,
+                                          width: 34,
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.1),
+                                                blurRadius: 6,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Icon(
+                                            isLiked ? Icons.favorite : Icons.favorite_border,
+                                            size: 20,
+                                            color: isLiked ? Colors.red : Colors.black,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
                           ],
                         ),
-                      ),
+
+                        Container(
+                          height: 1,
+                          width: double.infinity,
+                          color: Colors.grey.shade300,
+                        ),
+
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+                          child: Text(
+                            price != null ? "\$${price.toStringAsFixed(2)}" : "",
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Text(
+                            title,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 10),
+                      ],
                     ),
-
-                    Container(
-                      height: 1,
-                      width: double.infinity,
-                      color: Colors.grey.shade300,
-                    ),
-
-                    Padding(
-                      padding:
-                      const EdgeInsets.fromLTRB(10, 10, 10, 0),
-                      child: Text(
-                        price != null
-                            ? "\$${price.toStringAsFixed(2)}"
-                            : "",
-                        style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold),
-                      ),
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    Padding(
-                      padding:
-                      const EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(
-                        title,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87),
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-                  ],
-                ),
+                  );
+                },
               ),
             );
           },
