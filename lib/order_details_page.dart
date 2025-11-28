@@ -112,7 +112,6 @@ class OrderDetailsPage extends StatelessWidget {
 
           const SizedBox(width: 10),
 
-          // NAME + QTY
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,7 +136,6 @@ class OrderDetailsPage extends StatelessWidget {
     );
   }
 
-  /// 🔥 Animated Status Tracker
   Widget _statusTracker(String status) {
     final steps = [
       "pending",

@@ -14,9 +14,9 @@ import 'discover_page.dart';
 import 'notification_service.dart';
 import 'notifications_page.dart';
 import 'cart_page.dart';
+import 'liked_page.dart';
 import 'my_orders_page.dart';
 
-import 'liked_page.dart';
 
 const tkoOrange = Color(0xFFFF6A00);
 const tkoCream = Color(0xFFF7F2EC);
@@ -46,7 +46,15 @@ class _HomePageState extends State<HomePage> {
   Future<void> _initPushNotifications() async {
     final messaging = FirebaseMessaging.instance;
 
+    // 1) ASK PERMISSION (Android + iOS)
     await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    // 2) iOS: show notifications even when app is in foreground 🔥
+    await messaging.setForegroundNotificationPresentationOptions(
       alert: true,
       badge: true,
       sound: true,
@@ -82,12 +90,13 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
       const _HomeTab(),
       const MembershipQRPage(),
-      const _DiscoverTab(),
+      const LikedPage(),
       const ProfileCardTab(),
     ];
 
@@ -123,15 +132,54 @@ class _HomePageState extends State<HomePage> {
             },
             icon: const Icon(Icons.notifications_none, color: Colors.black87),
           ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CartPage()),
-              );
-            },
-            icon: const Icon(Icons.shopping_cart_outlined, color: Colors.black87),
-          ),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CartPage()),
+                  );
+                },
+                icon: const Icon(Icons.shopping_cart_outlined, color: Colors.black87),
+              ),
+
+              Positioned(
+                right: 4,
+                top: 4,
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection("users")
+                      .doc(FirebaseAuth.instance.currentUser!.uid)
+                      .collection("cart")
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const SizedBox();
+
+                    final count = snapshot.data!.docs.length;
+                    if (count == 0) return const SizedBox();
+
+                    return Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        count.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          )
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
@@ -152,14 +200,12 @@ class _HomePageState extends State<HomePage> {
             );
             return;
           }
-          setState(() => index = i.clamp(0, 3));
+          setState(() => index = i);
         },
       ),
     );
   }
 }
-
-// ==================== HOME TAB ====================
 
 class _HomeTab extends StatelessWidget {
   const _HomeTab();
@@ -180,7 +226,6 @@ class _HomeTab extends StatelessWidget {
 
     return Stack(
       children: [
-        // soft background: cream → white
         Positioned.fill(
           child: Container(
             decoration: const BoxDecoration(
@@ -366,7 +411,7 @@ Widget _softHalo({required double size, required Color color}) {
   );
 }
 
-// ==================== POSTERS ====================
+//POSTERS
 
 class _Poster {
   final String id, title, imageUrl, subtitle, ctaText, deeplink;
@@ -539,7 +584,6 @@ class _PosterCard extends StatelessWidget {
                     ),
                   ),
                   onPressed: () {
-                    // TODO: open item.deeplink or route
                   },
                   child: Text(
                     item.ctaText.isEmpty ? 'Details' : item.ctaText,
@@ -553,40 +597,6 @@ class _PosterCard extends StatelessWidget {
     );
   }
 }
-
-// ==================== DISCOVER TAB (simple list) ====================
-
-class _DiscoverTab extends StatelessWidget {
-  const _DiscoverTab();
-
-  @override
-  Widget build(BuildContext context) {
-    final items = List.generate(
-      8,
-          (i) => ('Bonus ${100 + i * 25} pts', 'On selected items this week'),
-    );
-    return ListView.separated(
-      padding: const EdgeInsets.only(top: 8),
-      itemCount: items.length,
-      itemBuilder: (_, i) {
-        final item = items[i];
-        return ListTile(
-          leading: const Icon(Icons.local_offer_outlined),
-          title: Text(
-            item.$1,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-          subtitle: Text(item.$2),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () {},
-        );
-      },
-      separatorBuilder: (_, __) => const Divider(height: 1),
-    );
-  }
-}
-
-// ==================== TIER / PERKS MODEL ====================
 
 class _Tier {
   final String name;
@@ -630,8 +640,7 @@ int? _nextThreshold(List<_Tier> tiers, int pts) {
 int _tierIndexByName(List<_Tier> tiers, String name) =>
     tiers.indexWhere((t) => t.name.toLowerCase() == name.toLowerCase());
 
-// ==================== TIER CARD (lux solid style) ====================
-
+//IER CARD
 class _TierCard extends StatelessWidget {
   final String tier;
   final int yearPoints;
@@ -695,12 +704,10 @@ class _TierCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // LEFT: text + progress
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // small pill
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
@@ -801,7 +808,6 @@ class _TierCard extends StatelessWidget {
 
               const SizedBox(width: 14),
 
-              // RIGHT: emblem only (🔻 Upgrade button removed)
               _TierEmblem(
                 accent: _tierColor,
                 compact: compact,
@@ -871,8 +877,6 @@ class _TierEmblem extends StatelessWidget {
     );
   }
 }
-
-// ==================== ACTION GRID ====================
 
 class _ActionGrid extends StatelessWidget {
   final int yearPts;
@@ -999,18 +1003,41 @@ class _ActionGrid extends StatelessWidget {
         const SizedBox(height: 14),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
+          children: [
             _PillAction(
               icon: Icons.history,
               label: 'Activity',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MyOrdersPage()),
+                );
+              },
             ),
-            SizedBox(width: 10),
-            _PillAction(
+
+            const SizedBox(width: 10),
+
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const OffersListScreen()),
+                );
+              },
+              child: const _PillAction(
+                icon: Icons.auto_awesome,
+                label: 'Discover',
+              ),
+            ),
+
+            const SizedBox(width: 10),
+
+            const _PillAction(
               icon: Icons.support_agent,
               label: 'Support',
             ),
           ],
-        ),
+        )
       ],
     );
   }
@@ -1099,43 +1126,53 @@ class _PrimaryActionCard extends StatelessWidget {
 class _PillAction extends StatelessWidget {
   final IconData icon;
   final String label;
+  final VoidCallback? onTap;   // 👈 new
 
-  const _PillAction({required this.icon, required this.label});
+  const _PillAction({
+    required this.icon,
+    required this.label,
+    this.onTap,                // 👈 new
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-            offset: Offset(0, 3),
-          )
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: tkoBrown),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-              color: tkoBrown,
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,            // 👈 new
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 8,
+              offset: Offset(0, 3),
+            )
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: tkoBrown),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                color: tkoBrown,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-// ==================== BENEFITS SHEET ====================
+
+//BENEFITS SHEET
 
 class _BenefitsSheet extends StatefulWidget {
   final int currentPoints;
@@ -1409,7 +1446,7 @@ class _DiscountsPanel extends StatelessWidget {
   }
 }
 
-// ==================== BRAND BOTTOM NAV ====================
+//BOTTOM NAV
 
 class TkoBottomNav extends StatelessWidget {
   final int index;
@@ -1422,6 +1459,7 @@ class TkoBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return SafeArea(
       top: false,
       child: Container(
@@ -1453,19 +1491,18 @@ class TkoBottomNav extends StatelessWidget {
               onTap: () => onChanged(1),
             ),
             _NavItem(
-              icon: Icons.auto_awesome_outlined,
-              activeIcon: Icons.auto_awesome,
-              label: 'Discover',
+              icon: Icons.favorite_border,
+              activeIcon: Icons.favorite,
+              label: 'Wishlist',
               isActive: index == 2,
               onTap: () {
-                Navigator.pushReplacement(
+                Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const OffersListScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const LikedPage()),
                 );
               },
             ),
+
             _NavItem(
               icon: Icons.person_outline,
               activeIcon: Icons.person,
@@ -1486,6 +1523,7 @@ class _NavItem extends StatelessWidget {
   final String label;
   final bool isActive;
   final VoidCallback onTap;
+  final int badgeCount;
 
   const _NavItem({
     required this.icon,
@@ -1493,6 +1531,7 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.isActive,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   @override
@@ -1517,6 +1556,7 @@ class _NavItem extends StatelessWidget {
             ]
                 : null,
           ),
+
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1525,6 +1565,28 @@ class _NavItem extends StatelessWidget {
                 size: isActive ? 22 : 20,
                 color: isActive ? tkoBrown : Colors.black54,
               ),
+
+              if (badgeCount > 0)
+                Positioned(
+                  right: -6,
+                  top: -4,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.grey,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      badgeCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+
               const SizedBox(height: 2),
               Text(
                 label,
@@ -1536,6 +1598,7 @@ class _NavItem extends StatelessWidget {
               ),
             ],
           ),
+
         ),
       ),
     );

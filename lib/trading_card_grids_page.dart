@@ -678,8 +678,8 @@ class _CardsGridPageState extends State<CardsGridPage>
                           const EdgeInsets.symmetric(
                               horizontal: 10),
                           child: Text(
-                            title,
-                            maxLines: 3,
+                            "$title...",
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.poppins(
                               fontSize: 13,

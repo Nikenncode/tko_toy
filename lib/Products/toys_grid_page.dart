@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'Product_description.dart';
-import 'home_page.dart';
-import 'like_service.dart';
+import '../Product_description.dart';
+import '../home_page.dart';
+import '../like_service.dart';
 
 class ToySearchDelegate extends SearchDelegate {
   final String collection;
