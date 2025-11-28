@@ -15,6 +15,8 @@ import 'notification_service.dart';
 import 'notifications_page.dart';
 import 'cart_page.dart';
 import 'liked_page.dart';
+import 'my_orders_page.dart';
+
 
 const tkoOrange = Color(0xFFFF6A00);
 const tkoCream = Color(0xFFF7F2EC);
@@ -44,7 +46,15 @@ class _HomePageState extends State<HomePage> {
   Future<void> _initPushNotifications() async {
     final messaging = FirebaseMessaging.instance;
 
+    // 1) ASK PERMISSION (Android + iOS)
     await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    // 2) iOS: show notifications even when app is in foreground 🔥
+    await messaging.setForegroundNotificationPresentationOptions(
       alert: true,
       badge: true,
       sound: true,
@@ -56,7 +66,7 @@ class _HomePageState extends State<HomePage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      debugPrint('FCM onMessage received!');
+      debugPrint('🔥 FCM onMessage received!');
       final notif = message.notification;
 
       if (uid != null && notif != null) {
@@ -79,6 +89,7 @@ class _HomePageState extends State<HomePage> {
       }
     });
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -993,9 +1004,15 @@ class _ActionGrid extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const _PillAction(
+            _PillAction(
               icon: Icons.history,
               label: 'Activity',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MyOrdersPage()),
+                );
+              },
             ),
 
             const SizedBox(width: 10),
@@ -1109,41 +1126,51 @@ class _PrimaryActionCard extends StatelessWidget {
 class _PillAction extends StatelessWidget {
   final IconData icon;
   final String label;
+  final VoidCallback? onTap;   // 👈 new
 
-  const _PillAction({required this.icon, required this.label});
+  const _PillAction({
+    required this.icon,
+    required this.label,
+    this.onTap,                // 👈 new
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-            offset: Offset(0, 3),
-          )
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: tkoBrown),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-              color: tkoBrown,
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,            // 👈 new
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 8,
+              offset: Offset(0, 3),
+            )
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: tkoBrown),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                color: tkoBrown,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
+
 
 //BENEFITS SHEET
 
