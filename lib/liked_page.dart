@@ -7,7 +7,8 @@ import 'Product_description.dart';
 import 'home_page.dart';
 import 'cart_page.dart';
 import 'cart_service.dart';
-import 'notifications_page.dart';
+import 'notifications_page.dart' as notif;  // 👈 use prefix here
+
 
 num? _getPrice(List? variants) {
   if (variants == null) return null;
@@ -89,7 +90,7 @@ class LikedPage extends StatelessWidget {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const NotificationsPage()),
+                MaterialPageRoute(builder: (_) => const notif.NotificationsPage()),
               );
             },
             icon: const Icon(Icons.notifications_none, color: Colors.black87),
