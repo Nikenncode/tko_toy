@@ -1,3 +1,4 @@
+// lib/profile_page.dart
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -14,13 +15,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'settings_page.dart';
 
-
 const tkoOrange = Color(0xFFFF6A00);
 const tkoCream = Color(0xFFF7F2EC);
 const tkoBrown = Color(0xFF6A3B1A);
 const tkoTeal = Color(0xFF00B8A2);
 const tkoGold = Color(0xFFFFD23F);
-
 
 class ProfileCardTab extends StatefulWidget {
   const ProfileCardTab({super.key});
@@ -50,7 +49,7 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     [Color(0xFF232733), Color(0xFF050608)],
   ];
 
-  //Back card themes
+  // Back card themes
   final List<List<Color>> backThemes = const [
     [Color(0xFFFFFFFF), Color(0xFFF2F2F2)],
     [Color(0xFF3A2C1F), Color(0xFF15110D)],
@@ -126,9 +125,8 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     final u = FirebaseAuth.instance.currentUser;
     if (u == null) return;
 
-    final doc = await FirebaseFirestore.instance
-        .doc('users/${u.uid}/profile/card')
-        .get();
+    final doc =
+    await FirebaseFirestore.instance.doc('users/${u.uid}/profile/card').get();
 
     if (!doc.exists) return;
 
@@ -282,7 +280,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
                     ),
                   ),
                   const SizedBox(height: 12),
-
                   Row(
                     children: [
                       GestureDetector(
@@ -330,7 +327,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 14),
                   TextField(
                     controller: _bioCtrl,
@@ -592,201 +588,253 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     final xUrl = _handleToUrl(_xHandle, 'https://x.com/');
     final discordUrl = _discordToUrl(_discord);
 
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF050607), Color(0xFF050607)],
-        ),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 8),
-          // Top row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: .85),
-                      width: 1.3,
-                    ),
-                    color: Colors.white.withValues(alpha: .08),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    initials,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Player card',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(
-                    Icons.settings_outlined,
-                    size: 20,
-                    color: Colors.white,
-                  ),
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SettingsPage()),
-                    );
-                    _loadFromAuth();
-                    await _loadFromFirestore();
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.ios_share_rounded,
-                    size: 20,
-                    color: Colors.white,
-                  ),
-                  onPressed: _captureAndShareCard,
-                ),
-              ],
-            ),
-          ),
 
-          const SizedBox(height: 4),
-          Expanded(
-            child: Center(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final cardWidth =
-                  (constraints.maxWidth - 40).clamp(260.0, 420.0);
-                  final cardHeight = cardWidth * 1.45;
-
-                  return Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Positioned.fill(
-                        child: CustomPaint(
-                          painter: _StripePainter(),
-                        ),
-                      ),
-                      RepaintBoundary(
-                        key: _cardKey,
-                        child: SizedBox(
-                          width: cardWidth,
-                          height: cardHeight,
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 280),
-                            transitionBuilder: (child, animation) {
-                              final fade = CurvedAnimation(
-                                parent: animation,
-                                curve: Curves.easeInOut,
-                              );
-                              final scale = Tween<double>(
-                                begin: 0.96,
-                                end: 1.0,
-                              ).animate(fade);
-
-                              return FadeTransition(
-                                opacity: fade,
-                                child: ScaleTransition(
-                                  scale: scale,
-                                  child: child,
-                                ),
-                              );
-                            },
-                            child: _showFront
-                                ? _buildFrontCard(
-                                context, instaUrl, discordUrl, xUrl)
-                                : _buildBackCard(context, initials),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
+    return Stack(
+      children: [
+        // Gradient background
+        Positioned.fill(
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFFFFF5EC),
+                  Color(0xFFFDF7F3),
+                  Color(0xFFF4FBF8),
+                ],
               ),
             ),
           ),
+        ),
+        // Soft bubbles / halos
+        Positioned(
+          top: -80,
+          left: -40,
+          child: _bgBubble(
+            220,
+            tkoOrange.withValues(alpha: .10),
+          ),
+        ),
+        Positioned(
+          top: 40,
+          right: -60,
+          child: _bgBubble(
+            160,
+            tkoGold.withValues(alpha: .16),
+          ),
+        ),
+        Positioned(
+          bottom: -70,
+          right: -30,
+          child: _bgBubble(
+            230,
+            tkoTeal.withValues(alpha: .16),
+          ),
+        ),
+        const Positioned(
+          top: 120,
+          left: 40,
+          child: Icon(Icons.auto_awesome, size: 18, color: tkoGold),
+        ),
+        const Positioned(
+          top: 155,
+          right: 46,
+          child: Icon(Icons.auto_awesome, size: 16, color: tkoTeal),
+        ),
 
-          Padding(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 16).copyWith(bottom: 10),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(999),
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFF101010), Color(0xFF050505)],
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x66000000),
-                          blurRadius: 20,
-                          offset: Offset(0, 8),
+        // Main content column
+        Positioned.fill(
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+              // Top row
+              Padding(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: tkoBrown.withValues(alpha: .85),
+                          width: 1.3,
                         ),
-                      ],
+                        color: Colors.white.withValues(alpha: .90),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        initials,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: tkoBrown,
+                        ),
+                      ),
                     ),
-                    child: Material(
-                      type: MaterialType.transparency,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(999),
-                        onTap: _openEditSheet,
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 12),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.edit_outlined,
-                                  size: 18, color: Colors.white),
-                              SizedBox(width: 8),
-                              Text(
-                                'Edit card',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Player card',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: tkoBrown,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.settings_outlined,
+                        size: 20,
+                        color: tkoBrown,
+                      ),
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const SettingsPage()),
+                        );
+                        _loadFromAuth();
+                        await _loadFromFirestore();
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.ios_share_rounded,
+                        size: 20,
+                        color: tkoBrown,
+                      ),
+                      onPressed: _captureAndShareCard,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Expanded(
+                child: Center(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final cardWidth =
+                      (constraints.maxWidth - 40).clamp(260.0, 420.0);
+                      final cardHeight = cardWidth * 1.45;
+
+                      return Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _StripePainter(),
+                            ),
+                          ),
+                          RepaintBoundary(
+                            key: _cardKey,
+                            child: SizedBox(
+                              width: cardWidth,
+                              height: cardHeight,
+                              child: AnimatedSwitcher(
+                                duration:
+                                const Duration(milliseconds: 280),
+                                transitionBuilder: (child, animation) {
+                                  final fade = CurvedAnimation(
+                                    parent: animation,
+                                    curve: Curves.easeInOut,
+                                  );
+                                  final scale = Tween<double>(
+                                    begin: 0.96,
+                                    end: 1.0,
+                                  ).animate(fade);
+
+                                  return FadeTransition(
+                                    opacity: fade,
+                                    child: ScaleTransition(
+                                      scale: scale,
+                                      child: child,
+                                    ),
+                                  );
+                                },
+                                child: _showFront
+                                    ? _buildFrontCard(
+                                    context, instaUrl, discordUrl, xUrl)
+                                    : _buildBackCard(context, initials),
                               ),
-                            ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16)
+                    .copyWith(bottom: 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF101010), Color(0xFF050505)],
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x66000000),
+                              blurRadius: 20,
+                              offset: Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          type: MaterialType.transparency,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(999),
+                            onTap: _openEditSheet,
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 18, vertical: 12),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.edit_outlined,
+                                      size: 18, color: Colors.white),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Edit card',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    FloatingActionButton(
+                      heroTag: 'flipCardFab',
+                      onPressed: _toggleSide,
+                      backgroundColor: tkoTeal,
+                      child: const Icon(
+                        Icons.autorenew_rounded,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                FloatingActionButton(
-                  heroTag: 'flipCardFab',
-                  onPressed: _toggleSide,
-                  backgroundColor: tkoTeal,
-                  child: const Icon(
-                    Icons.autorenew_rounded,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -874,7 +922,6 @@ class _ProfileCardTabState extends State<ProfileCardTab>
                     size: 16, color: tkoGold),
               ],
             ),
-
             const SizedBox(height: 16),
             Expanded(
               child: ClipRRect(
@@ -920,9 +967,7 @@ class _ProfileCardTabState extends State<ProfileCardTab>
                 ),
               ),
             ),
-
             const SizedBox(height: 16),
-
             _InfoLine(
               icon: Icons.radio_button_checked,
               label: 'About me',
@@ -938,11 +983,9 @@ class _ProfileCardTabState extends State<ProfileCardTab>
                   ? _funFact!
                   : 'Drop something fun, weird, or very TKO.',
             ),
-
             const SizedBox(height: 14),
             Divider(color: Colors.white.withValues(alpha: .12), height: 1),
             const SizedBox(height: 10),
-
             Wrap(
               spacing: 14,
               runSpacing: 6,
@@ -971,21 +1014,22 @@ class _ProfileCardTabState extends State<ProfileCardTab>
                       ? _instagram!
                       : '@$_instagram')
                       : 'Instagram',
-                  onTap: instaUrl == null
-                      ? null
-                      : () => _launchExternal(instaUrl),
+                  onTap:
+                  instaUrl == null ? null : () => _launchExternal(instaUrl),
                 ),
                 _PillIconText(
                   icon: Icons.chat_bubble_outline,
-                  label: _discord?.isNotEmpty == true ? _discord! : 'Discord',
+                  label:
+                  _discord?.isNotEmpty == true ? _discord! : 'Discord',
                   onTap: discordUrl == null
                       ? null
                       : () => _launchExternal(discordUrl),
                 ),
                 _PillIconText(
                   icon: Icons.alternate_email_outlined,
-                  label:
-                  _xHandle?.isNotEmpty == true ? _xHandle! : 'X / Twitter',
+                  label: _xHandle?.isNotEmpty == true
+                      ? _xHandle!
+                      : 'X / Twitter',
                   onTap: xUrl == null ? null : () => _launchExternal(xUrl),
                 ),
               ],
@@ -1249,3 +1293,13 @@ class _BackWavePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+
+Widget _bgBubble(double size, Color color) => Container(
+  width: size,
+  height: size,
+  decoration: BoxDecoration(
+    color: color,
+    shape: BoxShape.circle,
+  ),
+);

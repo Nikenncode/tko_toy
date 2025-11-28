@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'home_page.dart';
 import 'trading_card_page.dart';
 import 'toys_page.dart';
 import 'supplies_page.dart';
 import 'cart_page.dart';
+import 'notifications_page.dart';
 
 
 class Poster {
@@ -64,14 +66,62 @@ class ProductsPage extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.shopping_cart_outlined, color: Colors.black87),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const CartPage()),
+                MaterialPageRoute(builder: (_) => const NotificationsPage()),
               );
             },
+            icon: const Icon(Icons.notifications_none, color: Colors.black87),
           ),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CartPage()),
+                  );
+                },
+                icon: const Icon(Icons.shopping_cart_outlined, color: Colors.black87),
+              ),
+
+              Positioned(
+                right: 4,
+                top: 4,
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection("users")
+                      .doc(FirebaseAuth.instance.currentUser!.uid)
+                      .collection("cart")
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const SizedBox();
+
+                    final count = snapshot.data!.docs.length;
+                    if (count == 0) return const SizedBox();
+
+                    return Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        count.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          )
         ],
       ),
 
