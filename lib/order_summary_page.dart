@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'home_page.dart' show tkoOrange, tkoCream, tkoBrown, HomePage;
+import 'home_page.dart' show HomePage, tkoOrange, tkoCream, tkoBrown;
 import 'cart_service.dart';
 
 class OrderSummaryPage extends StatefulWidget {
@@ -38,6 +38,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       return;
     }
 
+    // simple validation
     if (_nameCtrl.text.trim().isEmpty ||
         _phoneCtrl.text.trim().isEmpty ||
         _addressCtrl.text.trim().isEmpty) {
@@ -50,6 +51,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     setState(() => _isPlacing = true);
 
     try {
+      // -------- 1) Read cart ----------
       final cartRef = FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -64,12 +66,11 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         return;
       }
 
-      // ---------- build line items & totals ----------
       double subtotal = 0;
       final List<Map<String, dynamic>> items = [];
 
       for (final d in cartSnap.docs) {
-        final data = d.data();
+        final data = d.data() as Map<String, dynamic>;
         final price = (data['price'] ?? 0) as num;
         final qty = (data['qty'] ?? 1) as int;
         final lineTotal = price.toDouble() * qty;
@@ -87,19 +88,17 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         });
       }
 
-      final shippingCost = 0.0; // change later if needed
-      final total = subtotal + shippingCost;
-      final itemCount = items.length;
+      const double shipping = 0.0;
+      final double total = subtotal + shipping;
       final now = Timestamp.now();
 
-      // 👇 shipping map that MyOrdersPage can show
-      final shipping = {
+      final address = {
         'name': _nameCtrl.text.trim(),
         'phone': _phoneCtrl.text.trim(),
         'fullAddress': _addressCtrl.text.trim(),
       };
 
-      // ---------- 1) user orders collection ----------
+      // -------- 2) Create order under user ----------
       final userOrderRef = FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -107,16 +106,15 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
 
       final userOrderDoc = await userOrderRef.add({
         'createdAt': now,
-        'status': 'Placed',        // matches MyOrdersPage colour logic
+        'status': 'Pending',
         'items': items,
-        'itemCount': itemCount,    // 👈 used in MyOrdersPage
         'subtotal': subtotal,
-        'shippingCost': shippingCost,
+        'shipping': shipping,
         'total': total,
-        'shipping': shipping,      // 👈 MyOrdersPage reads this
+        'address': address,
       });
 
-      // ---------- 2) master orders collection ----------
+      // -------- 3) Mirror into orders_master ----------
       final masterRef =
       FirebaseFirestore.instance.collection('orders_master');
 
@@ -125,23 +123,42 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         'userEmail': user.email,
         'userOrderId': userOrderDoc.id,
         'createdAt': now,
-        'status': 'Placed',
+        'status': 'Pending',
         'items': items,
-        'itemCount': itemCount,
         'subtotal': subtotal,
-        'shippingCost': shippingCost,
-        'total': total,
         'shipping': shipping,
+        'total': total,
+        'address': address,
       });
 
-      // ---------- 3) update points (yearPoints / lifetimePts) ----------
-      final pointsEarned = total.floor(); // 1 pt per $1
+      // -------- 4) Load tier + earnMultipliers and update points ----------
       final userDocRef =
       FirebaseFirestore.instance.collection('users').doc(user.uid);
 
+      final userSnap = await userDocRef.get();
+      final userData = userSnap.data() as Map<String, dynamic>? ?? {};
+      final String tierName =
+      (userData['tier'] ?? 'Featherweight').toString();
+
+      // read settings/general
+      final settingsSnap =
+      await FirebaseFirestore.instance.doc('settings/general').get();
+      final settingsData =
+          settingsSnap.data() as Map<String, dynamic>? ?? {};
+      final earnMultipliers =
+      Map<String, dynamic>.from(settingsData['earnMultipliers'] ?? {});
+
+      double multiplier = 1.0;
+      final rawMul = earnMultipliers[tierName];
+      if (rawMul is num) {
+        multiplier = rawMul.toDouble();
+      }
+
+      final int pointsEarned = (total * multiplier).round();
+
       await FirebaseFirestore.instance.runTransaction((tx) async {
         final snap = await tx.get(userDocRef);
-        final data = snap.data() ?? {};
+        final data = snap.data() as Map<String, dynamic>? ?? {};
         final currentYear = (data['yearPoints'] ?? 0) as int;
         final currentLife = (data['lifetimePts'] ?? 0) as int;
 
@@ -151,16 +168,19 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         });
       });
 
-      // ---------- 4) clear cart ----------
+      // -------- 5) Clear cart ----------
       await CartService.instance.clearCart();
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order placed successfully!')),
+        SnackBar(
+          content: Text(
+              'Order placed! You earned $pointsEarned pts ($tierName x${multiplier.toStringAsFixed(2)}).'),
+        ),
       );
 
-      // ---------- 5) go back to home ----------
+      // go back to home
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const HomePage(initialTab: 0)),
             (route) => false,
@@ -198,37 +218,17 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                children: const [
                   _SectionTitle('Shipping details'),
-                  const SizedBox(height: 8),
-                  _TextField(
-                    controller: _nameCtrl,
-                    label: 'Full name',
-                    hint: 'John Doe',
-                  ),
-                  const SizedBox(height: 10),
-                  _TextField(
-                    controller: _phoneCtrl,
-                    label: 'Phone',
-                    hint: '+1 555 555 5555',
-                    keyboardType: TextInputType.phone,
-                  ),
-                  const SizedBox(height: 10),
-                  _TextField(
-                    controller: _addressCtrl,
-                    label: 'Address',
-                    hint: 'Street, city, province, postal code',
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 22),
-
+                  SizedBox(height: 8),
+                  _ShippingForm(),
+                  SizedBox(height: 22),
                   _SectionTitle('Items in your cart'),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   _CartPreviewBox(),
-                  const SizedBox(height: 22),
-
+                  SizedBox(height: 22),
                   _SectionTitle('Payment summary'),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   _SummaryTotalsBox(),
                 ],
               ),
@@ -289,7 +289,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
   }
 }
 
-/// small section title
+/// title between sections
 class _SectionTitle extends StatelessWidget {
   final String text;
   const _SectionTitle(this.text);
@@ -307,7 +307,47 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-/// styled text field
+/// form fields for name / phone / address
+class _ShippingForm extends StatefulWidget {
+  const _ShippingForm();
+
+  @override
+  State<_ShippingForm> createState() => _ShippingFormState();
+}
+
+class _ShippingFormState extends State<_ShippingForm> {
+  @override
+  Widget build(BuildContext context) {
+    final state =
+    context.findAncestorStateOfType<_OrderSummaryPageState>()!;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _TextField(
+          controller: state._nameCtrl,
+          label: 'Full name',
+          hint: 'John Doe',
+        ),
+        const SizedBox(height: 10),
+        _TextField(
+          controller: state._phoneCtrl,
+          label: 'Phone',
+          hint: '+1 555 555 5555',
+          keyboardType: TextInputType.phone,
+        ),
+        const SizedBox(height: 10),
+        _TextField(
+          controller: state._addressCtrl,
+          label: 'Address',
+          hint: 'Street, city, province, postal code',
+          maxLines: 3,
+        ),
+      ],
+    );
+  }
+}
+
 class _TextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -345,15 +385,21 @@ class _TextField extends StatelessWidget {
             hintText: hint,
             filled: true,
             fillColor: Colors.white,
-            contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.black.withOpacity(.08)),
+              borderSide: BorderSide(
+                color: Colors.black.withOpacity(.08),
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.black.withOpacity(.12)),
+              borderSide: BorderSide(
+                color: Colors.black.withOpacity(.12),
+              ),
             ),
           ),
         ),
@@ -362,11 +408,13 @@ class _TextField extends StatelessWidget {
   }
 }
 
-/// shows a short list of cart items
+/// small cart preview
 class _CartPreviewBox extends StatelessWidget {
+  const _CartPreviewBox();
+
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<QuerySnapshot>(
       stream: CartService.instance.cartStream(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
@@ -404,7 +452,9 @@ class _CartPreviewBox extends StatelessWidget {
           child: Column(
             children: [
               for (final d in docs.take(3)) ...[
-                _CartPreviewRow(data: d.data()),
+                _CartPreviewRow(
+                  data: d.data() as Map<String, dynamic>,
+                ),
                 if (d != docs.last) const Divider(height: 12),
               ],
               if (docs.length > 3) ...[
@@ -459,24 +509,26 @@ class _CartPreviewRow extends StatelessWidget {
   }
 }
 
-/// totals box (subtotal / shipping / total)
+/// subtotal / shipping / total
 class _SummaryTotalsBox extends StatelessWidget {
+  const _SummaryTotalsBox();
+
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<QuerySnapshot>(
       stream: CartService.instance.cartStream(),
       builder: (context, snapshot) {
         double subtotal = 0;
         if (snapshot.hasData) {
           for (final d in snapshot.data!.docs) {
-            final data = d.data();
+            final data = d.data() as Map<String, dynamic>;
             final price = (data['price'] ?? 0) as num;
             final qty = (data['qty'] ?? 1) as int;
             subtotal += price.toDouble() * qty;
           }
         }
-        final shipping = 0.0;
-        final total = subtotal + shipping;
+        const double shipping = 0.0;
+        final double total = subtotal + shipping;
 
         return Container(
           padding: const EdgeInsets.all(14),
@@ -498,7 +550,7 @@ class _SummaryTotalsBox extends StatelessWidget {
     );
   }
 
-  Widget _row(String label, double value, {bool isBold = false}) {
+  static Widget _row(String label, double value, {bool isBold = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
