@@ -8,8 +8,66 @@ import 'cart_service.dart';
 import 'home_page.dart';
 import 'order_summary_page.dart';
 
+/// ================== SHARED DISCOUNT HELPERS ==================
+
+Future<Map<String, dynamic>> _loadSettings() async {
+  final snap =
+  await FirebaseFirestore.instance.doc('settings/general').get();
+  return snap.data() ?? <String, dynamic>{};
+}
+
+Future<Map<String, dynamic>> _loadUserDoc(User user) async {
+  final snap = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .get();
+  return snap.data() ?? <String, dynamic>{};
+}
+
+/// category bucket = "singles" / "sealed" / "supplies" / "toys" / "other"
+double _categoryDiscountPercent({
+  required Map<String, dynamic> settings,
+  required String tierName,
+  required String categoryBucket,
+}) {
+  // NEW: read from settings.discounts.{tierName}.{categoryBucket}
+  final discounts = settings['discounts'];
+  if (discounts is Map<String, dynamic>) {
+    final byTier = Map<String, dynamic>.from(discounts[tierName] ?? {});
+    final raw = byTier[categoryBucket];
+    if (raw is num) return raw.toDouble();
+  }
+
+  // Fallback for old structure: settings.{tierName}.{categoryBucket}
+  final rawTier = settings[tierName];
+  if (rawTier is Map<String, dynamic>) {
+    final value = rawTier[categoryBucket];
+    if (value is num) return value.toDouble();
+  }
+  return 0.0;
+}
+
+/// =============================================================
+
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
+
+  Future<Map<String, dynamic>> _loadSettingsAndTier() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return {
+        'settings': <String, dynamic>{},
+        'tierName': 'Featherweight',
+      };
+    }
+    final settings = await _loadSettings();
+    final userDoc = await _loadUserDoc(user);
+    final tierName = (userDoc['tier'] ?? 'Featherweight') as String;
+    return {
+      'settings': settings,
+      'tierName': tierName,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,83 +110,139 @@ class CartPage extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: CartService.instance.cartStream(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _loadSettingsAndTier(),
+        builder: (context, settingsSnap) {
+          if (settingsSnap.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(color: tkoBrown),
             );
           }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return _EmptyCartState();
-          }
+          final settings =
+              settingsSnap.data?['settings'] as Map<String, dynamic>? ?? {};
+          final tierName =
+          (settingsSnap.data?['tierName'] ?? 'Featherweight') as String;
 
-          final docs = snapshot.data!.docs;
+          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: CartService.instance.cartStream(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(color: tkoBrown),
+                );
+              }
 
-          double total = 0;
-          for (final d in docs) {
-            final data = d.data();
-            final price = (data['price'] ?? 0) as num;
-            final qty = (data['qty'] ?? 1) as int;
-            total += price.toDouble() * qty;
-          }
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return _EmptyCartState();
+              }
 
-          return Column(
-            children: [
-              const SizedBox(height: 12),
+              final docs = snapshot.data!.docs;
 
-              // small summary line
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'You have ${docs.length} item${docs.length == 1 ? '' : 's'} in your cart.',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: Colors.black.withOpacity(.65),
+              double total = 0;
+              double totalDiscount = 0;
+
+              // compute discounted totals
+              for (final d in docs) {
+                final data = d.data();
+                final price = (data['price'] ?? 0) as num;
+                final qty = (data['qty'] ?? 1) as int;
+                final baseLine = price.toDouble() * qty;
+
+                final bucket =
+                (data['discountBucket'] ?? data['category'] ?? 'other')
+                    .toString();
+
+                final discPct = _categoryDiscountPercent(
+                  settings: settings,
+                  tierName: tierName,
+                  categoryBucket: bucket,
+                );
+
+                final lineDiscount = baseLine * (discPct / 100.0);
+                final lineTotal = baseLine - lineDiscount;
+
+                total += lineTotal;
+                totalDiscount += lineDiscount;
+              }
+
+              return Column(
+                children: [
+                  const SizedBox(height: 12),
+
+                  // small summary line
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'You have ${docs.length} item${docs.length == 1 ? '' : 's'} in your cart.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: Colors.black.withOpacity(.65),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
 
-              const SizedBox(height: 8),
+                  const SizedBox(height: 8),
 
-              // cart list
-              Expanded(
-                child: ListView.separated(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: docs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    final data = doc.data();
+                  // cart list
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      itemCount: docs.length,
+                      separatorBuilder: (_, __) =>
+                      const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final doc = docs[index];
+                        final data = doc.data();
 
-                    final name = (data['name'] ?? '') as String;
-                    final price = (data['price'] ?? 0) as num;
-                    final qty = (data['qty'] ?? 1) as int;
-                    final imageUrl = (data['imageUrl'] ?? '') as String;
-                    final category = (data['category'] ?? '') as String;
+                        final name = (data['name'] ?? '') as String;
+                        final price = (data['price'] ?? 0) as num;
+                        final qty = (data['qty'] ?? 1) as int;
+                        final imageUrl = (data['imageUrl'] ?? '') as String;
+                        final category =
+                        (data['category'] ?? '') as String;
+                        final bucket =
+                        (data['discountBucket'] ?? data['category'] ?? 'other')
+                            .toString();
 
-                    return _CartItemCard(
-                      docId: doc.id,
-                      name: name,
-                      price: price.toDouble(),
-                      qty: qty,
-                      imageUrl: imageUrl,
-                      category: category,
-                      fullData: data,
-                    );
-                  },
-                ),
-              ),
+                        final baseLine = price.toDouble() * qty;
+                        final discPct = _categoryDiscountPercent(
+                          settings: settings,
+                          tierName: tierName,
+                          categoryBucket: bucket,
+                        );
+                        final lineDiscount =
+                            baseLine * (discPct / 100.0);
+                        final lineTotal = baseLine - lineDiscount;
 
-              // total + checkout
-              _CartTotalBar(total: total),
-            ],
+                        return _CartItemCard(
+                          docId: doc.id,
+                          name: name,
+                          unitPrice: price.toDouble(),
+                          qty: qty,
+                          imageUrl: imageUrl,
+                          category: category,
+                          discountPercent: discPct,
+                          lineDiscount: lineDiscount,
+                          lineTotal: lineTotal,
+                          fullData: data,
+                        );
+                      },
+                    ),
+                  ),
+
+                  // total + checkout
+                  _CartTotalBar(
+                    total: total,
+                    totalDiscount: totalDiscount,
+                  ),
+                ],
+              );
+            },
           );
         },
       ),
@@ -139,25 +253,31 @@ class CartPage extends StatelessWidget {
 class _CartItemCard extends StatelessWidget {
   final String docId;
   final String name;
-  final double price;
+  final double unitPrice;
   final int qty;
   final String imageUrl;
   final String category;
+  final double discountPercent;
+  final double lineDiscount;
+  final double lineTotal;
   final Map<String, dynamic> fullData;
 
   const _CartItemCard({
     required this.docId,
     required this.name,
-    required this.price,
+    required this.unitPrice,
     required this.qty,
     required this.imageUrl,
     required this.category,
+    required this.discountPercent,
+    required this.lineDiscount,
+    required this.lineTotal,
     required this.fullData,
   });
 
   @override
   Widget build(BuildContext context) {
-    final lineTotal = price * qty;
+    final baseLine = unitPrice * qty;
 
     return Container(
       decoration: BoxDecoration(
@@ -233,7 +353,7 @@ class _CartItemCard extends StatelessWidget {
 
                   const SizedBox(height: 6),
 
-                  // price row
+                  // price + discount row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -241,21 +361,46 @@ class _CartItemCard extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // original unit price
                           Text(
-                            '\$${price.toStringAsFixed(2)}',
+                            '\$${unitPrice.toStringAsFixed(2)}',
                             style: GoogleFonts.poppins(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                               color: Colors.black87,
                             ),
                           ),
-                          Text(
-                            'Line total: \$${lineTotal.toStringAsFixed(2)}',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              color: Colors.black.withOpacity(.60),
+
+                          // base line vs discounted line
+                          if (discountPercent > 0)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Line total: \$${lineTotal.toStringAsFixed(2)}',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.green.shade700,
+                                  ),
+                                ),
+                                Text(
+                                  'You save \$${lineDiscount.toStringAsFixed(2)} (${discountPercent.toStringAsFixed(0)}%)',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    color: Colors.green.shade700,
+                                  ),
+                                ),
+                              ],
+                            )
+                          else
+                            Text(
+                              'Line total: \$${baseLine.toStringAsFixed(2)}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                color: Colors.black.withOpacity(.60),
+                              ),
                             ),
-                          ),
                         ],
                       ),
 
@@ -293,11 +438,14 @@ class _CartItemCard extends StatelessWidget {
                             onPressed: () async {
                               try {
                                 await CartService.instance.addToCart(
-                                  productId: fullData['productId'] ?? docId,
+                                  productId:
+                                  fullData['productId'] ?? docId,
                                   name: name,
-                                  price: price,
+                                  price: unitPrice,
                                   imageUrl: imageUrl,
                                   category: category,
+                                  discountBucket:
+                                  fullData['discountBucket'],
                                 );
                               } catch (e) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -315,7 +463,8 @@ class _CartItemCard extends StatelessWidget {
                               size: 20,
                             ),
                             onPressed: () async {
-                              await CartService.instance.removeFromCart(docId);
+                              await CartService.instance
+                                  .removeFromCart(docId);
                               // ignore: use_build_context_synchronously
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -340,8 +489,12 @@ class _CartItemCard extends StatelessWidget {
 
 class _CartTotalBar extends StatelessWidget {
   final double total;
+  final double totalDiscount;
 
-  const _CartTotalBar({required this.total});
+  const _CartTotalBar({
+    required this.total,
+    required this.totalDiscount,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -366,6 +519,15 @@ class _CartTotalBar extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (totalDiscount > 0)
+                    Text(
+                      'You’re saving \$${totalDiscount.toStringAsFixed(2)} on this order.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  if (totalDiscount > 0) const SizedBox(height: 2),
                   Text(
                     'Total',
                     style: GoogleFonts.poppins(
@@ -422,7 +584,7 @@ class _CartTotalBar extends StatelessWidget {
 }
 
 class _EmptyCartState extends StatelessWidget {
-  _EmptyCartState({super.key});
+  const _EmptyCartState({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -463,7 +625,7 @@ class _EmptyCartState extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Add some toys and supplies to see them here.',
+              'Add some items to see them here.',
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 13,

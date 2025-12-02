@@ -4,8 +4,118 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'home_page.dart' show HomePage, tkoOrange, tkoCream, tkoBrown;
 import 'cart_service.dart';
+import 'home_page.dart' show tkoOrange, tkoCream, tkoBrown, HomePage;
+
+/// ---------- Helpers to read settings / user / discounts ----------
+
+Future<Map<String, dynamic>> _loadSettings() async {
+  final snap =
+  await FirebaseFirestore.instance.doc('settings/general').get();
+  return snap.data() ?? <String, dynamic>{};
+}
+
+Future<Map<String, dynamic>> _loadUserDoc(User user) async {
+  final snap = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .get();
+  return snap.data() ?? <String, dynamic>{};
+}
+
+/// earnMultipliers.Featherweight = 1, Heavyweight = 1.5, etc.
+double _earnMultiplierForTier(
+    Map<String, dynamic> settings,
+    String tierName,
+    ) {
+  final earnMap =
+  Map<String, dynamic>.from(settings['earnMultipliers'] ?? {});
+  final raw = earnMap[tierName];
+  if (raw is num) return raw.toDouble();
+  return 1.0;
+}
+
+/// Try to normalize a category string into one of our buckets
+/// "singles" / "sealed" / "supplies" / "toys"
+String _inferBucket(dynamic raw) {
+  final text = raw?.toString().toLowerCase() ?? '';
+
+  if (text.contains('single')) return 'singles';
+  if (text.contains('sealed')) return 'sealed';
+  if (text.contains('supply') || text.contains('accessor')) {
+    return 'supplies';
+  }
+  if (text.contains('toy') || text.contains('beyblade')) {
+    return 'toys';
+  }
+  return '';
+}
+
+/// Look up discount percent (0–100) for this tier + bucket.
+///
+/// Supports 2 Firestore shapes:
+/// 1) settings/general: { discounts: { "Featherweight": { "singles": 5, ... } } }
+/// 2) settings/general: { "Featherweight": { "singles": 5, ... }, ... }
+double _categoryDiscountPercent({
+  required Map<String, dynamic> settings,
+  required String tierName,
+  required String bucket,
+}) {
+  Map<String, dynamic>? tierMap;
+
+  // Option A: nested under "discounts"
+  final discountsRoot = settings['discounts'];
+  if (discountsRoot is Map<String, dynamic> &&
+      discountsRoot[tierName] is Map<String, dynamic>) {
+    tierMap = Map<String, dynamic>.from(discountsRoot[tierName]);
+  }
+
+  // Option B: top-level tier field
+  if (tierMap == null && settings[tierName] is Map<String, dynamic>) {
+    tierMap = Map<String, dynamic>.from(settings[tierName]);
+  }
+
+  if (tierMap == null) return 0.0;
+
+  // Try to match bucket key even if case / formatting differ
+  final bucketLower = bucket.toLowerCase();
+  String? matchedKey;
+
+  for (final k in tierMap.keys) {
+    final lk = k.toString().toLowerCase();
+    if (lk == bucketLower ||
+        bucketLower.contains(lk) ||
+        lk.contains(bucketLower)) {
+      matchedKey = k;
+      break;
+    }
+  }
+
+  if (matchedKey == null) return 0.0;
+  final v = tierMap[matchedKey];
+  if (v is num) return v.toDouble();
+  return 0.0;
+}
+
+/// Helper just for the summary box
+Future<Map<String, dynamic>> _loadSettingsAndTier() async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) {
+    return {
+      'settings': <String, dynamic>{},
+      'tierName': 'Featherweight',
+    };
+  }
+  final settings = await _loadSettings();
+  final userDoc = await _loadUserDoc(user);
+  final tierName = (userDoc['tier'] ?? 'Featherweight') as String;
+  return {
+    'settings': settings,
+    'tierName': tierName,
+  };
+}
+
+/// -----------------------------------------------------------------
 
 class OrderSummaryPage extends StatefulWidget {
   const OrderSummaryPage({super.key});
@@ -38,7 +148,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       return;
     }
 
-    // simple validation
     if (_nameCtrl.text.trim().isEmpty ||
         _phoneCtrl.text.trim().isEmpty ||
         _addressCtrl.text.trim().isEmpty) {
@@ -51,14 +160,21 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     setState(() => _isPlacing = true);
 
     try {
-      // -------- 1) Read cart ----------
+      // 1) Load settings + user to know tier + multipliers
+      final settings = await _loadSettings();
+      final userDoc = await _loadUserDoc(user);
+
+      final tierName = (userDoc['tier'] ?? 'Featherweight') as String;
+      final earnX = _earnMultiplierForTier(settings, tierName);
+
+      // 2) Load cart
       final cartRef = FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('cart');
 
-      final cartSnap = await cartRef.get();
-      if (cartSnap.docs.isEmpty) {
+      final cSnap = await cartRef.get();
+      if (cSnap.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Your cart is empty.')),
         );
@@ -67,15 +183,36 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       }
 
       double subtotal = 0;
+      double discountTotal = 0;
       final List<Map<String, dynamic>> items = [];
 
-      for (final d in cartSnap.docs) {
-        final data = d.data() as Map<String, dynamic>;
+      for (final d in cSnap.docs) {
+        final data = d.data();
+
         final price = (data['price'] ?? 0) as num;
         final qty = (data['qty'] ?? 1) as int;
-        final lineTotal = price.toDouble() * qty;
+        final baseLine = price.toDouble() * qty;
 
-        subtotal += lineTotal;
+        // Prefer stored discountBucket; fallback to category inference
+        String bucket =
+        (data['discountBucket'] ?? _inferBucket(data['category']))
+            .toString();
+
+        if (bucket.trim().isEmpty) {
+          bucket = 'other';
+        }
+
+        final discPct = _categoryDiscountPercent(
+          settings: settings,
+          tierName: tierName,
+          bucket: bucket,
+        );
+
+        final lineDiscount = baseLine * (discPct / 100.0);
+        final lineTotal = baseLine - lineDiscount;
+
+        subtotal += baseLine;
+        discountTotal += lineDiscount;
 
         items.add({
           'productId': data['productId'] ?? d.id,
@@ -84,12 +221,18 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
           'qty': qty,
           'imageUrl': data['imageUrl'] ?? '',
           'category': data['category'] ?? '',
+          'discountBucket': bucket,
+          'lineSubtotal': baseLine,
+          'discountPercent': discPct,
+          'discountAmount': lineDiscount,
           'lineTotal': lineTotal,
         });
       }
 
-      const double shipping = 0.0;
-      final double total = subtotal + shipping;
+      const shipping = 0.0;
+      final totalBeforeDiscount = subtotal + shipping;
+      final total = totalBeforeDiscount - discountTotal;
+
       final now = Timestamp.now();
 
       final address = {
@@ -98,7 +241,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         'fullAddress': _addressCtrl.text.trim(),
       };
 
-      // -------- 2) Create order under user ----------
+      // 3) user/{uid}/orders
       final userOrderRef = FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -106,15 +249,17 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
 
       final userOrderDoc = await userOrderRef.add({
         'createdAt': now,
-        'status': 'Pending',
+        'status': 'pending',
         'items': items,
         'subtotal': subtotal,
         'shipping': shipping,
+        'discountTotal': discountTotal,
         'total': total,
+        'tierAtPurchase': tierName,
         'address': address,
       });
 
-      // -------- 3) Mirror into orders_master ----------
+      // 4) orders_master
       final masterRef =
       FirebaseFirestore.instance.collection('orders_master');
 
@@ -123,42 +268,25 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         'userEmail': user.email,
         'userOrderId': userOrderDoc.id,
         'createdAt': now,
-        'status': 'Pending',
+        'status': 'pending',
         'items': items,
         'subtotal': subtotal,
         'shipping': shipping,
+        'discountTotal': discountTotal,
         'total': total,
+        'tierAtPurchase': tierName,
         'address': address,
       });
 
-      // -------- 4) Load tier + earnMultipliers and update points ----------
+      // 5) Points: total * earnMultiplier
+      final pointsEarned = (total * earnX).floor();
+
       final userDocRef =
       FirebaseFirestore.instance.collection('users').doc(user.uid);
 
-      final userSnap = await userDocRef.get();
-      final userData = userSnap.data() as Map<String, dynamic>? ?? {};
-      final String tierName =
-      (userData['tier'] ?? 'Featherweight').toString();
-
-      // read settings/general
-      final settingsSnap =
-      await FirebaseFirestore.instance.doc('settings/general').get();
-      final settingsData =
-          settingsSnap.data() as Map<String, dynamic>? ?? {};
-      final earnMultipliers =
-      Map<String, dynamic>.from(settingsData['earnMultipliers'] ?? {});
-
-      double multiplier = 1.0;
-      final rawMul = earnMultipliers[tierName];
-      if (rawMul is num) {
-        multiplier = rawMul.toDouble();
-      }
-
-      final int pointsEarned = (total * multiplier).round();
-
       await FirebaseFirestore.instance.runTransaction((tx) async {
         final snap = await tx.get(userDocRef);
-        final data = snap.data() as Map<String, dynamic>? ?? {};
+        final data = snap.data() ?? {};
         final currentYear = (data['yearPoints'] ?? 0) as int;
         final currentLife = (data['lifetimePts'] ?? 0) as int;
 
@@ -168,19 +296,17 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         });
       });
 
-      // -------- 5) Clear cart ----------
+      // 6) Clear cart + go home
       await CartService.instance.clearCart();
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-              'Order placed! You earned $pointsEarned pts ($tierName x${multiplier.toStringAsFixed(2)}).'),
+          content: Text('Order placed! +$pointsEarned pts'),
         ),
       );
 
-      // go back to home
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const HomePage(initialTab: 0)),
             (route) => false,
@@ -218,18 +344,38 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  _SectionTitle('Shipping details'),
-                  SizedBox(height: 8),
-                  _ShippingForm(),
-                  SizedBox(height: 22),
-                  _SectionTitle('Items in your cart'),
-                  SizedBox(height: 8),
-                  _CartPreviewBox(),
-                  SizedBox(height: 22),
-                  _SectionTitle('Payment summary'),
-                  SizedBox(height: 8),
-                  _SummaryTotalsBox(),
+                children: [
+                  const _SectionTitle('Shipping details'),
+                  const SizedBox(height: 8),
+                  _TextField(
+                    controller: _nameCtrl,
+                    label: 'Full name',
+                    hint: 'John Doe',
+                  ),
+                  const SizedBox(height: 10),
+                  _TextField(
+                    controller: _phoneCtrl,
+                    label: 'Phone',
+                    hint: '+1 555 555 5555',
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 10),
+                  _TextField(
+                    controller: _addressCtrl,
+                    label: 'Address',
+                    hint: 'Street, city, province, postal code',
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 22),
+
+                  const _SectionTitle('Items in your cart'),
+                  const SizedBox(height: 8),
+                  const _CartPreviewBox(),
+                  const SizedBox(height: 22),
+
+                  const _SectionTitle('Payment summary'),
+                  const SizedBox(height: 8),
+                  const _SummaryTotalsBox(),
                 ],
               ),
             ),
@@ -269,8 +415,9 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                     height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.2,
-                      valueColor:
-                      AlwaysStoppedAnimation<Color>(Colors.black),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.black,
+                      ),
                     ),
                   )
                       : Text(
@@ -289,7 +436,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
   }
 }
 
-/// title between sections
+/// small section title
 class _SectionTitle extends StatelessWidget {
   final String text;
   const _SectionTitle(this.text);
@@ -307,47 +454,7 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-/// form fields for name / phone / address
-class _ShippingForm extends StatefulWidget {
-  const _ShippingForm();
-
-  @override
-  State<_ShippingForm> createState() => _ShippingFormState();
-}
-
-class _ShippingFormState extends State<_ShippingForm> {
-  @override
-  Widget build(BuildContext context) {
-    final state =
-    context.findAncestorStateOfType<_OrderSummaryPageState>()!;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _TextField(
-          controller: state._nameCtrl,
-          label: 'Full name',
-          hint: 'John Doe',
-        ),
-        const SizedBox(height: 10),
-        _TextField(
-          controller: state._phoneCtrl,
-          label: 'Phone',
-          hint: '+1 555 555 5555',
-          keyboardType: TextInputType.phone,
-        ),
-        const SizedBox(height: 10),
-        _TextField(
-          controller: state._addressCtrl,
-          label: 'Address',
-          hint: 'Street, city, province, postal code',
-          maxLines: 3,
-        ),
-      ],
-    );
-  }
-}
-
+/// styled text field
 class _TextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -391,15 +498,13 @@ class _TextField extends StatelessWidget {
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Colors.black.withOpacity(.08),
-              ),
+              borderSide:
+              BorderSide(color: Colors.black.withOpacity(.08)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Colors.black.withOpacity(.12),
-              ),
+              borderSide:
+              BorderSide(color: Colors.black.withOpacity(.12)),
             ),
           ),
         ),
@@ -408,13 +513,13 @@ class _TextField extends StatelessWidget {
   }
 }
 
-/// small cart preview
+/// shows a short list of cart items
 class _CartPreviewBox extends StatelessWidget {
   const _CartPreviewBox();
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: CartService.instance.cartStream(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
@@ -451,11 +556,10 @@ class _CartPreviewBox extends StatelessWidget {
           ),
           child: Column(
             children: [
-              for (final d in docs.take(3)) ...[
-                _CartPreviewRow(
-                  data: d.data() as Map<String, dynamic>,
-                ),
-                if (d != docs.last) const Divider(height: 12),
+              for (int i = 0; i < docs.length && i < 3; i++) ...[
+                _CartPreviewRow(data: docs[i].data()),
+                if (i != docs.length - 1 && i < 2)
+                  const Divider(height: 12),
               ],
               if (docs.length > 3) ...[
                 const SizedBox(height: 6),
@@ -509,48 +613,100 @@ class _CartPreviewRow extends StatelessWidget {
   }
 }
 
-/// subtotal / shipping / total
+/// ✅ totals box WITH DISCOUNT + final total (matches _placeOrder)
 class _SummaryTotalsBox extends StatelessWidget {
   const _SummaryTotalsBox();
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: CartService.instance.cartStream(),
-      builder: (context, snapshot) {
-        double subtotal = 0;
-        if (snapshot.hasData) {
-          for (final d in snapshot.data!.docs) {
-            final data = d.data() as Map<String, dynamic>;
-            final price = (data['price'] ?? 0) as num;
-            final qty = (data['qty'] ?? 1) as int;
-            subtotal += price.toDouble() * qty;
-          }
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _loadSettingsAndTier(),
+      builder: (context, settingsSnap) {
+        if (settingsSnap.connectionState == ConnectionState.waiting) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child:
+            const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
         }
-        const double shipping = 0.0;
-        final double total = subtotal + shipping;
 
-        return Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-            children: [
-              _row('Subtotal', subtotal),
-              const SizedBox(height: 6),
-              _row('Shipping', shipping),
-              const Divider(height: 18),
-              _row('Total', total, isBold: true),
-            ],
-          ),
+        final settings =
+            settingsSnap.data?['settings'] as Map<String, dynamic>? ??
+                <String, dynamic>{};
+        final tierName =
+        (settingsSnap.data?['tierName'] ?? 'Featherweight') as String;
+
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: CartService.instance.cartStream(),
+          builder: (context, snapshot) {
+            double subtotal = 0;
+            double discountTotal = 0;
+
+            if (snapshot.hasData) {
+              for (final d in snapshot.data!.docs) {
+                final data = d.data();
+                final price = (data['price'] ?? 0) as num;
+                final qty = (data['qty'] ?? 1) as int;
+                final baseLine = price.toDouble() * qty;
+
+                String bucket =
+                (data['discountBucket'] ?? _inferBucket(data['category']))
+                    .toString();
+                if (bucket.trim().isEmpty) {
+                  bucket = 'other';
+                }
+
+                final discPct = _categoryDiscountPercent(
+                  settings: settings,
+                  tierName: tierName,
+                  bucket: bucket,
+                );
+
+                final lineDiscount = baseLine * (discPct / 100.0);
+                final lineTotal = baseLine - lineDiscount;
+
+                subtotal += baseLine;
+                discountTotal += lineDiscount;
+              }
+            }
+
+            const shipping = 0.0;
+            final totalBeforeDiscount = subtotal + shipping;
+            final totalAfterDiscount = totalBeforeDiscount - discountTotal;
+
+            return Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                children: [
+                  _row('Subtotal (before discount)', subtotal),
+                  const SizedBox(height: 6),
+                  _row('Discount', -discountTotal),
+                  const SizedBox(height: 6),
+                  _row('Shipping', shipping),
+                  const Divider(height: 18),
+                  _row('Total after tier perks', totalAfterDiscount,
+                      isBold: true),
+                ],
+              ),
+            );
+          },
         );
       },
     );
   }
 
   static Widget _row(String label, double value, {bool isBold = false}) {
+    final display =
+    (label == 'Discount' && value != 0) ? '-\$${value.abs().toStringAsFixed(2)}' : '\$${value.toStringAsFixed(2)}';
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -562,7 +718,7 @@ class _SummaryTotalsBox extends StatelessWidget {
           ),
         ),
         Text(
-          '\$${value.toStringAsFixed(2)}',
+          display,
           style: GoogleFonts.poppins(
             fontSize: 14,
             fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,

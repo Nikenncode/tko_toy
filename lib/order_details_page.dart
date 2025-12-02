@@ -1,7 +1,9 @@
+// lib/order_details_page.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import 'home_page.dart';
 
 class OrderDetailsPage extends StatelessWidget {
@@ -17,22 +19,22 @@ class OrderDetailsPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Text("Order Tracking",
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w700,
-              color: tkoBrown,
-            )),
+        title: Text(
+          "Order Tracking",
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w700,
+            color: tkoBrown,
+          ),
+        ),
         centerTitle: true,
       ),
-
-      body: StreamBuilder(
+      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
             .collection("users")
             .doc(uid)
             .collection("orders")
             .doc(orderId)
             .snapshots(),
-
         builder: (context, snap) {
           if (!snap.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -40,12 +42,12 @@ class OrderDetailsPage extends StatelessWidget {
 
           final data = snap.data!.data();
           if (data == null) {
-            return Center(child: Text("Order not found"));
+            return const Center(child: Text("Order not found"));
           }
 
           final status = data["status"] ?? "pending";
-          final total = data["total"] ?? 0.0;
-          final items = (data["items"] as List? ?? []);
+          final total = (data["total"] ?? 0.0) as num;
+          final items = (data["items"] as List? ?? const []);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -66,7 +68,10 @@ class OrderDetailsPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
 
-                ...items.map((item) => _itemCard(item)),
+                ...items
+                    .whereType<Map<String, dynamic>>()
+                    .map((item) => _itemCard(item))
+                    .toList(),
 
                 const SizedBox(height: 20),
 
@@ -88,7 +93,23 @@ class OrderDetailsPage extends StatelessWidget {
     );
   }
 
+  /// ===== ITEM CARD WITH DISCOUNT DISPLAY =====
   Widget _itemCard(Map<String, dynamic> item) {
+    final name = (item["name"] ?? "").toString();
+    final qty = (item["qty"] ?? 1) as int;
+
+    // price per unit (if stored)
+    final price = (item["price"] ?? 0) as num;
+
+    // values we stored from OrderSummaryPage (if present)
+    final lineSubtotal = (item["lineSubtotal"] ?? (price * qty)) as num;
+    final lineTotal = (item["lineTotal"] ?? lineSubtotal) as num;
+    final discountAmount = (item["discountAmount"] ?? 0) as num;
+    final discountPercent = (item["discountPercent"] ?? 0) as num;
+
+    final hasDiscount =
+        discountAmount > 0 && discountPercent > 0 && lineTotal < lineSubtotal;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
@@ -101,41 +122,83 @@ class OrderDetailsPage extends StatelessWidget {
           // IMAGE
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: item['imageUrl'] != null && item['imageUrl'] != ""
-                ? Image.network(item['imageUrl'], width: 60, height: 60, fit: BoxFit.cover)
+            child: (item['imageUrl'] != null &&
+                item['imageUrl'].toString().isNotEmpty)
+                ? Image.network(
+              item['imageUrl'],
+              width: 60,
+              height: 60,
+              fit: BoxFit.cover,
+            )
                 : Container(
               width: 60,
               height: 60,
               color: Colors.grey.shade300,
+              child: Icon(
+                Icons.image_not_supported,
+                color: Colors.grey.shade500,
+              ),
             ),
           ),
 
           const SizedBox(width: 10),
 
+          // TEXTS
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item["name"] ?? "",
+                Text(
+                  name,
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Qty: $qty",
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.black45,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                if (hasDiscount) ...[
+                  // original line subtotal + discount info
+                  Text(
+                    "Before discount: \$${lineSubtotal.toStringAsFixed(2)}",
                     style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: Colors.grey.shade600,
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                  ),
+                  Text(
+                    "You saved \$${discountAmount.toStringAsFixed(2)} (${discountPercent.toStringAsFixed(0)}%)",
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: Colors.green.shade700,
                       fontWeight: FontWeight.w600,
-                    )),
-                Text("Qty: ${item["qty"]}",
-                    style: GoogleFonts.poppins(
-                        fontSize: 12, color: Colors.black45)),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
 
+          // FINAL PRICE (AFTER DISCOUNT)
           Text(
-            "\$${item['lineTotal'].toStringAsFixed(2)}",
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-          )
+            "\$${lineTotal.toStringAsFixed(2)}",
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
   }
 
+  /// ===== STATUS TRACKER (unchanged) =====
   Widget _statusTracker(String status) {
     final steps = [
       "pending",

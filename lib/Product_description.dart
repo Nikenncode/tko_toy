@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'home_page.dart';
@@ -18,6 +19,19 @@ class ProductDetailsPage extends StatefulWidget {
 
 class _ProductDetailsPageState extends State<ProductDetailsPage> {
   int _selectedImageIndex = 0;
+
+  // ---- loyalty / discounts ----
+  double? _discountPct;      // e.g. 8% for toys
+  double? _earnMultiplier;   // e.g. 1.5x pts / $1
+  bool _loadingMeta = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLoyaltyMeta();
+  }
+
+  // ---------- helpers for product fields ----------
 
   List<String> get _images {
     final raw = widget.product['images'];
@@ -60,6 +74,103 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     return raw.replaceAll(RegExp(r'<[^>]*>'), '').trim();
   }
 
+  // figure out category key for discount map
+  String _discountCategoryKey(Map<String, dynamic> p) {
+    final parentTab = (p['parentTab'] ?? '').toString().toLowerCase();
+    final cat = (p['category'] ?? '').toString().toLowerCase();
+    final text = '$parentTab $cat';
+
+    if (text.contains('sealed')) return 'sealed';
+    if (text.contains('single')) return 'singles';
+    if (text.contains('supply')) return 'supplies';
+    if (text.contains('accessor')) return 'supplies';
+    return 'toys'; // default bucket
+  }
+
+  // nice label for UI
+  String _categoryLabel(String key) {
+    switch (key) {
+      case 'sealed':
+        return 'sealed products';
+      case 'singles':
+        return 'singles';
+      case 'supplies':
+        return 'supplies & accessories';
+      case 'toys':
+      default:
+        return 'toys';
+    }
+  }
+
+  // ---------- load tier + discount / earnX from Firestore ----------
+
+  Future<void> _loadLoyaltyMeta() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final userTier =
+      (userDoc.data()?['tier'] ?? 'Featherweight').toString();
+
+      final settingsDoc = await FirebaseFirestore.instance
+          .collection('settings')
+          .doc('general')
+          .get();
+
+      final settings = settingsDoc.data() ?? {};
+
+      // earnMultipliers: {Featherweight: 1, Heavyweight: 1.5, ...}
+      final earnMap =
+      Map<String, dynamic>.from(settings['earnMultipliers'] ?? {});
+      double earnX = 1.0;
+      final rawEarn = earnMap[userTier];
+      if (rawEarn is num) earnX = rawEarn.toDouble();
+
+      // discounts: support both structures
+      // 1) settings.general.discounts.{Tier}.{category}
+      // 2) settings.general.{Tier}.{category}   (your screenshot)
+      Map<String, dynamic> tierDisc = {};
+
+      final discountsRoot = settings['discounts'];
+      if (discountsRoot is Map) {
+        final map = Map<String, dynamic>.from(discountsRoot);
+        final t = map[userTier];
+        if (t is Map) {
+          tierDisc = Map<String, dynamic>.from(t);
+        }
+      }
+
+      if (tierDisc.isEmpty) {
+        final t = settings[userTier];
+        if (t is Map) {
+          tierDisc = Map<String, dynamic>.from(t);
+        }
+      }
+
+      final catKey = _discountCategoryKey(widget.product);
+      double discPct = 0.0;
+      final rawDisc = tierDisc[catKey];
+      if (rawDisc is num) discPct = rawDisc.toDouble();
+
+      if (!mounted) return;
+      setState(() {
+        _earnMultiplier = earnX;
+        _discountPct = discPct;
+      });
+    } catch (_) {
+      // fail silently – product page should still work
+    } finally {
+      if (mounted) {
+        setState(() => _loadingMeta = false);
+      }
+    }
+  }
+
   // ---------------- UTILITIES ----------------
 
   bool _validImage(String? url) => url != null && url.startsWith("http");
@@ -99,14 +210,42 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     if (price == null) return;
 
     final title = widget.product['title']?.toString() ?? "";
-    final category =
-        widget.product['category']?.toString() ??
-            widget.product['parentTab']?.toString() ??
-            "";
 
+    // 1) image
     final images = _images;
     final imageUrl = images.isNotEmpty ? images.first : "";
 
+    // 2) human-readable category for UI
+    final displayCategory =
+        widget.product['category']?.toString() ??
+            widget.product['parentTab']?.toString() ??
+            '';
+
+    // 3) discount bucket: singles / sealed / supplies / toys / other
+    String bucket =
+    (widget.product['discountBucket'] ?? '').toString().toLowerCase();
+
+    final parentTab =
+        widget.product['parentTab']?.toString().toLowerCase() ?? '';
+    final rawCategory =
+        widget.product['category']?.toString().toLowerCase() ?? '';
+
+    final combined = '$parentTab $rawCategory';
+
+    if (bucket.isEmpty) {
+      if (combined.contains('single')) {
+        bucket = 'singles';
+      } else if (combined.contains('sealed')) {
+        bucket = 'sealed';
+      } else if (combined.contains('supply')) {
+        bucket = 'supplies';
+      } else if (combined.contains('toy')) {
+        bucket = 'toys';
+      }
+    }
+    if (bucket.isEmpty) bucket = 'other';
+
+    // 4) productId
     final productId = widget.product['docId']?.toString() ??
         widget.product['id']?.toString() ??
         widget.product['title']?.toString() ??
@@ -118,11 +257,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         name: title,
         price: price,
         imageUrl: imageUrl,
-        category: category,
+        category: displayCategory,   // what you show in UI
+        discountBucket: bucket,      // what we use for % off
       );
 
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Added to cart ✓")),
       );
@@ -134,6 +273,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     }
   }
 
+
   // -----------------------------------------------
 
   @override
@@ -143,10 +283,27 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
     final title = widget.product['title']?.toString() ?? "";
     final vendor = widget.product['vendor']?.toString() ?? "";
-    final category = widget.product['category']?.toString() ?? "";
+    final category = widget.product['category']?.toString() ??
+        widget.product['parentTab']?.toString() ??
+        "";
     final totalStock = _totalInventory;
     final inStock = totalStock > 0;
     final price = _price;
+    final basePrice = price?.toDouble();
+
+    final catKey = _discountCategoryKey(widget.product);
+    final catLabel = _categoryLabel(catKey);
+    final disc = (_discountPct ?? 0).clamp(0, 100);
+    final hasDiscount = basePrice != null && disc > 0;
+
+    final discountedPrice =
+    hasDiscount ? basePrice! * (1 - disc / 100.0) : basePrice;
+
+    // approximate points earned on ONE unit
+    int? ptsEarn;
+    if (discountedPrice != null && _earnMultiplier != null) {
+      ptsEarn = (discountedPrice * _earnMultiplier!).floor();
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -267,7 +424,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
             const SizedBox(height: 20),
 
-            // PRICE BOX
+            // PRICE BOX (+ discount & points info)
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -277,20 +434,83 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (price != null)
+                  if (basePrice != null) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("Price:",
-                            style: GoogleFonts.poppins(
-                                fontSize: 14, fontWeight: FontWeight.w600)),
                         Text(
-                          "\$${price.toStringAsFixed(2)} CAD",
+                          "Price:",
                           style: GoogleFonts.poppins(
-                              fontSize: 17, fontWeight: FontWeight.bold),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
+                        if (hasDiscount) ...[
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                "\$${basePrice.toStringAsFixed(2)} CAD",
+                                style: GoogleFonts.poppins(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade600,
+                                  decoration: TextDecoration.lineThrough,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "\$${discountedPrice!.toStringAsFixed(2)} CAD",
+                                style: GoogleFonts.poppins(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          Text(
+                            "\$${basePrice.toStringAsFixed(2)} CAD",
+                            style: GoogleFonts.poppins(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
+                    const SizedBox(height: 8),
+                    if (hasDiscount)
+                      Text(
+                        "You save ${disc.toStringAsFixed(0)}% on $catLabel.",
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.green.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    if (ptsEarn != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        "Earn ~$ptsEarn pts on this item.",
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.black.withOpacity(.75),
+                        ),
+                      ),
+                    ],
+                    if (_loadingMeta)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          "Loading tier benefits…",
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                  ],
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -299,9 +519,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           style: GoogleFonts.poppins(
                               fontSize: 14, fontWeight: FontWeight.w600)),
                       Text(
-                        inStock
-                            ? "In Stock ($totalStock)"
-                            : "Out of Stock",
+                        inStock ? "In Stock ($totalStock)" : "Out of Stock",
                         style: GoogleFonts.poppins(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -332,9 +550,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: Text("Add to Cart",
-                        style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600)),
+                    child: Text(
+                      "Add to Cart",
+                      style:
+                      GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -359,9 +579,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: Text("Buy Now",
-                        style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600)),
+                    child: Text(
+                      "Buy Now",
+                      style:
+                      GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ),
               ],
@@ -370,9 +592,13 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             const SizedBox(height: 28),
 
             // ---------------- DESCRIPTION ----------------
-            Text("Description",
-                style: GoogleFonts.poppins(
-                    fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              "Description",
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 8),
             Text(
               _plainDescription.isNotEmpty
@@ -400,13 +626,15 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           if (newIndex == 1) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const HomePage(initialTab: 1)),
+              MaterialPageRoute(
+                  builder: (_) => const HomePage(initialTab: 1)),
             );
           }
           if (newIndex == 3) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const HomePage(initialTab: 3)),
+              MaterialPageRoute(
+                  builder: (_) => const HomePage(initialTab: 3)),
             );
           }
         },
