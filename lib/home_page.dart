@@ -46,14 +46,12 @@ class _HomePageState extends State<HomePage> {
   Future<void> _initPushNotifications() async {
     final messaging = FirebaseMessaging.instance;
 
-    // 1) ASK PERMISSION (Android + iOS)
     await messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
 
-    // 2) iOS: show notifications even when app is in foreground 🔥
     await messaging.setForegroundNotificationPresentationOptions(
       alert: true,
       badge: true,
@@ -416,7 +414,6 @@ Widget _softHalo({required double size, required Color color}) {
 }
 
 //POSTERS
-
 class _Poster {
   final String id, title, imageUrl, subtitle, ctaText, deeplink;
   final int priority;
@@ -761,6 +758,7 @@ class _TierCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
+
                     // progress bar
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1136,19 +1134,19 @@ class _PrimaryActionCard extends StatelessWidget {
 class _PillAction extends StatelessWidget {
   final IconData icon;
   final String label;
-  final VoidCallback? onTap;   // 👈 new
+  final VoidCallback? onTap;
 
   const _PillAction({
     required this.icon,
     required this.label,
-    this.onTap,                // 👈 new
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(999),
-      onTap: onTap,            // 👈 new
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
@@ -1183,7 +1181,6 @@ class _PillAction extends StatelessWidget {
 
 
 //BENEFITS SHEET
-
 class _BenefitsSheet extends StatefulWidget {
   final int currentPoints;
   final List<_Tier> tiers;
@@ -1457,7 +1454,6 @@ class _DiscountsPanel extends StatelessWidget {
 }
 
 //BOTTOM NAV
-
 class TkoBottomNav extends StatelessWidget {
   final int index;
   final ValueChanged<int> onChanged;

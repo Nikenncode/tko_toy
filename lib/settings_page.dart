@@ -62,7 +62,6 @@ class _SettingsPageState extends State<SettingsPage> {
         push = (data['pushEnabled'] as bool?) ?? true;
       }
     } catch (_) {
-      // ignore, fall back to auth-only info
     }
 
     if (!mounted) return;
@@ -109,10 +108,6 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// LOGOUT:
-  /// - sign out from Google
-  /// - sign out from Firebase
-  /// - reset navigation to AuthGate
   Future<void> _logout() async {
     try {
       try {

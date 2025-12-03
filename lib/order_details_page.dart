@@ -1,4 +1,3 @@
-// lib/order_details_page.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -54,7 +53,6 @@ class OrderDetailsPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 🔥 STATUS BAR
                 _statusTracker(status),
 
                 const SizedBox(height: 20),
@@ -93,15 +91,13 @@ class OrderDetailsPage extends StatelessWidget {
     );
   }
 
-  /// ===== ITEM CARD WITH DISCOUNT DISPLAY =====
+  // DISPLAY
   Widget _itemCard(Map<String, dynamic> item) {
     final name = (item["name"] ?? "").toString();
     final qty = (item["qty"] ?? 1) as int;
 
-    // price per unit (if stored)
     final price = (item["price"] ?? 0) as num;
 
-    // values we stored from OrderSummaryPage (if present)
     final lineSubtotal = (item["lineSubtotal"] ?? (price * qty)) as num;
     final lineTotal = (item["lineTotal"] ?? lineSubtotal) as num;
     final discountAmount = (item["discountAmount"] ?? 0) as num;
@@ -119,7 +115,6 @@ class OrderDetailsPage extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // IMAGE
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: (item['imageUrl'] != null &&
@@ -143,7 +138,6 @@ class OrderDetailsPage extends StatelessWidget {
 
           const SizedBox(width: 10),
 
-          // TEXTS
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,7 +158,6 @@ class OrderDetailsPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 if (hasDiscount) ...[
-                  // original line subtotal + discount info
                   Text(
                     "Before discount: \$${lineSubtotal.toStringAsFixed(2)}",
                     style: GoogleFonts.poppins(
@@ -186,7 +179,6 @@ class OrderDetailsPage extends StatelessWidget {
             ),
           ),
 
-          // FINAL PRICE (AFTER DISCOUNT)
           Text(
             "\$${lineTotal.toStringAsFixed(2)}",
             style: GoogleFonts.poppins(

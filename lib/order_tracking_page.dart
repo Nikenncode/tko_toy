@@ -1,4 +1,3 @@
-// lib/order_tracking_page.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'home_page.dart';
@@ -12,8 +11,6 @@ class OrderTrackingPage extends StatelessWidget {
     required this.orderId,
     required this.orderData,
   });
-
-  // ---- SAFE helpers ----
 
   List<Map<String, dynamic>> get _items {
     final raw = orderData['items'];

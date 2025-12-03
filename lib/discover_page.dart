@@ -45,7 +45,6 @@ class OffersListScreen extends StatelessWidget {
   Future<void> _openDeeplink(String? deeplink) async {
     if (deeplink == null || deeplink.isEmpty) return;
 
-    // simplest: treat as web URL for now
     final uri = Uri.tryParse(deeplink);
     if (uri == null) return;
 
@@ -59,7 +58,7 @@ class OffersListScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       bottomNavigationBar: TkoBottomNav(
-        index: 2,
+        index: -1,
         onChanged: (newIndex) {
           switch (newIndex) {
             case 0:
@@ -157,9 +156,9 @@ class OffersListScreen extends StatelessWidget {
               final type        = (data['type'] ?? '') as String;
               final iconName    = data['icon'] as String?;
               final colorHex    = data['color'] as String?;
-              final imageUrl    = data['imageUrl'] as String?;   // 👈 NEW
-              final deeplink    = data['deeplink'] as String?;   // 👈 NEW
-              final buttonLabel = data['buttonLabel'] as String?; // 👈 NEW
+              final imageUrl    = data['imageUrl'] as String?;
+              final deeplink    = data['deeplink'] as String?;
+              final buttonLabel = data['buttonLabel'] as String?;
 
               final icon  = _iconFromName(iconName);
               final color = _colorFromHex(colorHex);
@@ -201,7 +200,6 @@ class OffersListScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // top row
                       ListTile(
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
@@ -236,30 +234,30 @@ class OffersListScreen extends StatelessWidget {
                         ),
                       ),
 
-                      // optional image banner
+                      //image banner
                       if (imageUrl != null && imageUrl.isNotEmpty) ...[
                         const SizedBox(height: 4),
+
                         ClipRRect(
                           borderRadius: const BorderRadius.only(
                             bottomLeft: Radius.circular(14),
                             bottomRight: Radius.circular(14),
                           ),
-                          child: Image.network(
-                            imageUrl,
+                          child: Container(
                             height: 160,
                             width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              height: 160,
+                            decoration: BoxDecoration(
                               color: Colors.grey[200],
-                              alignment: Alignment.center,
-                              child: const Icon(Icons.broken_image_outlined),
+                              image: DecorationImage(
+                                image: NetworkImage(imageUrl),
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                         ),
                       ],
 
-                      // optional CTA button
+                      //CTA button
                       if (deeplink != null && deeplink.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         Padding(

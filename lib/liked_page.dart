@@ -22,8 +22,6 @@ num? _getPrice(List? variants) {
   return null;
 }
 
-
-
 class LikedPage extends StatelessWidget {
   const LikedPage({super.key});
 
@@ -41,7 +39,6 @@ class LikedPage extends StatelessWidget {
               product["parentTab"]?.toString() ??
               "";
 
-      // ----------- FIXED DISCOUNT BUCKET -----------
       String bucket = "";
       final parentTab =
           product['parentTab']?.toString().toLowerCase() ?? '';
@@ -67,7 +64,7 @@ class LikedPage extends StatelessWidget {
         price: price,
         imageUrl: imageUrl,
         category: category,
-        discountBucket: bucket,   // 🔥 FIXED
+        discountBucket: bucket,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -109,7 +106,6 @@ class LikedPage extends StatelessWidget {
 
     final settings = settingsDoc.data() ?? {};
 
-    // Discount tables from Firestore
     Map<String, dynamic> tierDisc = {};
 
     if (settings['discounts'] is Map) {
@@ -377,7 +373,6 @@ class LikedPage extends StatelessWidget {
                                         future: () async {
                                           if (productPrice == null) return 0.0;
 
-                                          // discount bucket you already calculated
                                           String bucket = "";
                                           final parentTab = data['parentTab']?.toString().toLowerCase() ?? '';
                                           final rawCategory = data['category']?.toString().toLowerCase() ?? '';
@@ -401,7 +396,6 @@ class LikedPage extends StatelessWidget {
                                           return Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              // Original Price
                                               Text(
                                                 "C\$ ${productPrice!.toStringAsFixed(2)}",
                                                 style: GoogleFonts.poppins(

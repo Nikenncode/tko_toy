@@ -124,181 +124,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     super.dispose();
   }
 
-  Future<void> _placeOrder() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login first.')),
-      );
-      return;
-    }
-
-    if (_nameCtrl.text.trim().isEmpty ||
-        _phoneCtrl.text.trim().isEmpty ||
-        _addressCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all address fields.')),
-      );
-      return;
-    }
-
-    setState(() => _isPlacing = true);
-
-    try {
-      final settings = await _loadSettings();
-      final userDoc = await _loadUserDoc(user);
-
-      final tierName = (userDoc['tier'] ?? 'Featherweight') as String;
-      final earnX = _earnMultiplierForTier(settings, tierName);
-
-      final cartRef = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('cart');
-
-      final cSnap = await cartRef.get();
-      if (cSnap.docs.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Your cart is empty.')),
-        );
-        setState(() => _isPlacing = false);
-        return;
-      }
-
-      double subtotal = 0;
-      double discountTotal = 0;
-      final List<Map<String, dynamic>> items = [];
-
-      for (final d in cSnap.docs) {
-        final data = d.data();
-
-        final price = (data['price'] ?? 0) as num;
-        final qty = (data['qty'] ?? 1) as int;
-        final baseLine = price.toDouble() * qty;
-
-        String bucket =
-        (data['discountBucket'] ?? _inferBucket(data['category']))
-            .toString();
-
-        if (bucket.trim().isEmpty) {
-          bucket = 'other';
-        }
-
-        final discPct = _categoryDiscountPercent(
-          settings: settings,
-          tierName: tierName,
-          bucket: bucket,
-        );
-
-        final lineDiscount = baseLine * (discPct / 100.0);
-        final lineTotal = baseLine - lineDiscount;
-
-        subtotal += baseLine;
-        discountTotal += lineDiscount;
-
-        items.add({
-          'productId': data['productId'] ?? d.id,
-          'name': data['name'] ?? '',
-          'price': price.toDouble(),
-          'qty': qty,
-          'imageUrl': data['imageUrl'] ?? '',
-          'category': data['category'] ?? '',
-          'discountBucket': bucket,
-          'lineSubtotal': baseLine,
-          'discountPercent': discPct,
-          'discountAmount': lineDiscount,
-          'lineTotal': lineTotal,
-        });
-      }
-
-      const shipping = 0.0;
-      final totalBeforeDiscount = subtotal + shipping;
-      final total = totalBeforeDiscount - discountTotal;
-
-      final now = Timestamp.now();
-
-      final address = {
-        'name': _nameCtrl.text.trim(),
-        'phone': _phoneCtrl.text.trim(),
-        'fullAddress': _addressCtrl.text.trim(),
-      };
-
-      final userOrderRef = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('orders');
-
-      final userOrderDoc = await userOrderRef.add({
-        'createdAt': now,
-        'status': 'pending',
-        'items': items,
-        'subtotal': subtotal,
-        'shipping': shipping,
-        'discountTotal': discountTotal,
-        'total': total,
-        'tierAtPurchase': tierName,
-        'address': address,
-      });
-
-      final masterRef =
-      FirebaseFirestore.instance.collection('orders_master');
-
-      await masterRef.add({
-        'userId': user.uid,
-        'userEmail': user.email,
-        'userOrderId': userOrderDoc.id,
-        'createdAt': now,
-        'status': 'pending',
-        'items': items,
-        'subtotal': subtotal,
-        'shipping': shipping,
-        'discountTotal': discountTotal,
-        'total': total,
-        'tierAtPurchase': tierName,
-        'address': address,
-      });
-
-      final pointsEarned = (total * earnX).floor();
-
-      final userDocRef =
-      FirebaseFirestore.instance.collection('users').doc(user.uid);
-
-      await FirebaseFirestore.instance.runTransaction((tx) async {
-        final snap = await tx.get(userDocRef);
-        final data = snap.data() ?? {};
-        final currentYear = (data['yearPoints'] ?? 0) as int;
-        final currentLife = (data['lifetimePts'] ?? 0) as int;
-
-        tx.update(userDocRef, {
-          'yearPoints': currentYear + pointsEarned,
-          'lifetimePts': currentLife + pointsEarned,
-        });
-      });
-
-      await CartService.instance.clearCart();
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Order placed! +$pointsEarned pts'),
-        ),
-      );
-
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomePage(initialTab: 0)),
-            (route) => false,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error placing order: $e')),
-      );
-    } finally {
-      if (mounted) setState(() => _isPlacing = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -382,15 +207,30 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                   onPressed: _isPlacing
                       ? null
                       : () async {
+                    if (_nameCtrl.text.trim().isEmpty ||
+                        _phoneCtrl.text.trim().isEmpty ||
+                        _addressCtrl.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please fill all address fields.')),
+                      );
+                      return;
+                    }
+
                     final cartTotal = await CartService.instance.getCartTotal();
 
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => PaymentPage(amount: cartTotal),
+                        builder: (_) => PaymentPage(
+                          amount: cartTotal,
+                          name: _nameCtrl.text.trim(),
+                          phone: _phoneCtrl.text.trim(),
+                          fullAddress: _addressCtrl.text.trim(),
+                        ),
                       ),
                     );
                   },
+
 
                   style: ElevatedButton.styleFrom(
                     backgroundColor: tkoOrange,
@@ -697,7 +537,8 @@ class _SummaryTotalsBox extends StatelessWidget {
 
   static Widget _row(String label, double value, {bool isBold = false}) {
     final display =
-    (label == 'Discount' && value != 0) ? '-\$${value.abs().toStringAsFixed(2)}' : '\$${value.toStringAsFixed(2)}';
+    (label == 'Discount' && value != 0) ? '-\$${value.abs().toStringAsFixed(2)}'
+        : '\$${value.toStringAsFixed(2)}';
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

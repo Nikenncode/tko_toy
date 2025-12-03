@@ -1,9 +1,7 @@
-// lib/cart_page.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 
 import 'my_orders_page.dart';
 import 'cart_service.dart';
@@ -253,6 +251,31 @@ class CartPage extends StatelessWidget {
               );
             },
           );
+        },
+      ),
+      bottomNavigationBar: TkoBottomNav(
+        index: -1,
+        onChanged: (newIndex) {
+          if (newIndex == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const HomePage()),
+            );
+          }
+          if (newIndex == 1) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const HomePage(initialTab: 1)),
+            );
+          }
+          if (newIndex == 3) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const HomePage(initialTab: 3)),
+            );
+          }
         },
       ),
     );

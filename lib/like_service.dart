@@ -13,7 +13,6 @@ class LikeService {
 
     final id = product["id"].toString().replaceAll("/", "_");
 
-    // --- Extract fields for discounts ---
     final parentTab = product['parentTab']?.toString().toLowerCase() ?? '';
     final rawCategory = product['category']?.toString().toLowerCase() ?? '';
     final combined = '$parentTab $rawCategory';
@@ -24,7 +23,6 @@ class LikeService {
     else if (combined.contains("supply")) bucket = "supplies";
     else if (combined.contains("toy")) bucket = "toys";
 
-    // --- Save into Firestore with discountBucket ---
     await _likedRef(uid).doc(id).set({
       ...product,
       "parentTab": parentTab,

@@ -102,8 +102,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     }
   }
 
-  // ---------- load tier + discount / earnX from Firestore ----------
-
   Future<void> _loadLoyaltyMeta() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -124,16 +122,12 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
       final settings = settingsDoc.data() ?? {};
 
-      // earnMultipliers: {Featherweight: 1, Heavyweight: 1.5, ...}
       final earnMap =
       Map<String, dynamic>.from(settings['earnMultipliers'] ?? {});
       double earnX = 1.0;
       final rawEarn = earnMap[userTier];
       if (rawEarn is num) earnX = rawEarn.toDouble();
 
-      // discounts: support both structures
-      // 1) settings.general.discounts.{Tier}.{category}
-      // 2) settings.general.{Tier}.{category}   (your screenshot)
       Map<String, dynamic> tierDisc = {};
 
       final discountsRoot = settings['discounts'];
@@ -163,15 +157,12 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         _discountPct = discPct;
       });
     } catch (_) {
-      // fail silently – product page should still work
     } finally {
       if (mounted) {
         setState(() => _loadingMeta = false);
       }
     }
   }
-
-  // ---------------- UTILITIES ----------------
 
   bool _validImage(String? url) => url != null && url.startsWith("http");
 
@@ -211,17 +202,14 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
     final title = widget.product['title']?.toString() ?? "";
 
-    // 1) image
     final images = _images;
     final imageUrl = images.isNotEmpty ? images.first : "";
 
-    // 2) human-readable category for UI
     final displayCategory =
         widget.product['category']?.toString() ??
             widget.product['parentTab']?.toString() ??
             '';
 
-    // 3) discount bucket: singles / sealed / supplies / toys / other
     String bucket =
     (widget.product['discountBucket'] ?? '').toString().toLowerCase();
 
@@ -245,7 +233,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     }
     if (bucket.isEmpty) bucket = 'other';
 
-    // 4) productId
     final productId = widget.product['docId']?.toString() ??
         widget.product['id']?.toString() ??
         widget.product['title']?.toString() ??
@@ -257,8 +244,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         name: title,
         price: price,
         imageUrl: imageUrl,
-        category: displayCategory,   // what you show in UI
-        discountBucket: bucket,      // what we use for % off
+        category: displayCategory,
+        discountBucket: bucket,
       );
 
       if (!mounted) return;
@@ -272,9 +259,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       );
     }
   }
-
-
-  // -----------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -299,7 +283,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     final discountedPrice =
     hasDiscount ? basePrice! * (1 - disc / 100.0) : basePrice;
 
-    // approximate points earned on ONE unit
     int? ptsEarn;
     if (discountedPrice != null && _earnMultiplier != null) {
       ptsEarn = (discountedPrice * _earnMultiplier!).floor();
@@ -307,8 +290,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-
-      // ---------------- APPBAR ----------------
       appBar: AppBar(
         title: Text(
           widget.product["parentTab"] ?? "Product",
@@ -328,13 +309,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         ],
       ),
 
-      // ---------------- BODY ----------------
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // MAIN IMAGE
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: Container(
@@ -353,7 +332,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
             const SizedBox(height: 10),
 
-            // THUMBNAILS
             if (images.length > 1)
               SizedBox(
                 height: 85,
@@ -402,7 +380,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
             const SizedBox(height: 18),
 
-            // TITLE
             Text(
               title,
               style: GoogleFonts.poppins(
@@ -413,7 +390,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
             const SizedBox(height: 8),
 
-            // VENDOR + CATEGORY
             Text(
               "$vendor • $category",
               style: GoogleFonts.poppins(
@@ -424,7 +400,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
             const SizedBox(height: 20),
 
-            // PRICE BOX (+ discount & points info)
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -534,7 +509,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
             const SizedBox(height: 25),
 
-            // ---------------- BUTTONS ----------------
             Row(
               children: [
                 Expanded(
@@ -591,7 +565,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
             const SizedBox(height: 28),
 
-            // ---------------- DESCRIPTION ----------------
             Text(
               "Description",
               style: GoogleFonts.poppins(
@@ -613,7 +586,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         ),
       ),
 
-      // ---------------- BOTTOM NAV ----------------
       bottomNavigationBar: TkoBottomNav(
         index: -1,
         onChanged: (newIndex) {
