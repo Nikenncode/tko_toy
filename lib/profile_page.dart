@@ -588,10 +588,10 @@ class _ProfileCardTabState extends State<ProfileCardTab>
     final xUrl = _handleToUrl(_xHandle, 'https://x.com/');
     final discordUrl = _discordToUrl(_discord);
 
-    // 🔹 SAME BACKGROUND AS MembershipQRPage
+    // NEW: membership-style light background with bubbles
     return Stack(
       children: [
-        // Gradient cream → white
+        // Gradient background
         Positioned.fill(
           child: Container(
             decoration: const BoxDecoration(
@@ -599,24 +599,51 @@ class _ProfileCardTabState extends State<ProfileCardTab>
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  tkoCream,
-                  Colors.white,
+                  Color(0xFFFFF5EC),
+                  Color(0xFFFDF7F3),
+                  Color(0xFFF4FBF8),
                 ],
               ),
             ),
           ),
         ),
-        // Soft halo in top-right
+        // Soft bubbles / halos
         Positioned(
           top: -80,
-          right: -40,
-          child: _softHalo(
-            size: 180,
-            color: tkoTeal.withValues(alpha: .45),
+          left: -40,
+          child: _bgBubble(
+            220,
+            tkoOrange.withValues(alpha: .10),
           ),
         ),
+        Positioned(
+          top: 40,
+          right: -60,
+          child: _bgBubble(
+            160,
+            tkoGold.withValues(alpha: .16),
+          ),
+        ),
+        Positioned(
+          bottom: -70,
+          right: -30,
+          child: _bgBubble(
+            230,
+            tkoTeal.withValues(alpha: .16),
+          ),
+        ),
+        const Positioned(
+          top: 120,
+          left: 40,
+          child: Icon(Icons.auto_awesome, size: 18, color: tkoGold),
+        ),
+        const Positioned(
+          top: 155,
+          right: 46,
+          child: Icon(Icons.auto_awesome, size: 16, color: tkoTeal),
+        ),
 
-        // Page content
+        // Main content column
         Positioned.fill(
           child: Column(
             children: [
@@ -1267,21 +1294,12 @@ class _BackWavePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// 🔸 Same helper as MembershipQRPage
-Widget _softHalo({required double size, required Color color}) {
-  return Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      color: color.withValues(alpha: .10),
-      boxShadow: [
-        BoxShadow(
-          color: color.withValues(alpha: .40),
-          blurRadius: size * 0.6,
-          spreadRadius: size * 0.18,
-        ),
-      ],
-    ),
-  );
-}
+// small helper for soft background bubbles
+Widget _bgBubble(double size, Color color) => Container(
+  width: size,
+  height: size,
+  decoration: BoxDecoration(
+    color: color,
+    shape: BoxShape.circle,
+  ),
+);

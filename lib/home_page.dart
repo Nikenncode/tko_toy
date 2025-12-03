@@ -16,7 +16,7 @@ import 'notifications_page.dart';
 import 'cart_page.dart';
 import 'liked_page.dart';
 import 'my_orders_page.dart';
-
+import 'support_page.dart';
 
 const tkoOrange = Color(0xFFFF6A00);
 const tkoCream = Color(0xFFF7F2EC);
@@ -1036,9 +1036,15 @@ class _ActionGrid extends StatelessWidget {
 
             const SizedBox(width: 10),
 
-            const _PillAction(
+            _PillAction(
               icon: Icons.support_agent,
               label: 'Support',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SupportPage()),
+                );
+              },
             ),
           ],
         )
