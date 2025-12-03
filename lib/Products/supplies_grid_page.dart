@@ -333,7 +333,7 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
     final collection = _getFirebaseCollection();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: tkoCream,
 
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -571,8 +571,8 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
                       Padding(
                         padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
                         child: Text(
-                          title,
-                          maxLines: 3,
+                          "$title...",
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.poppins(
                             fontSize: 13,

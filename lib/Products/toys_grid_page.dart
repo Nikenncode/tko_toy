@@ -329,12 +329,12 @@ class _ToysGridPageState extends State<ToysGridPage>
         _getFirebaseCollection() ?? "toys_beyblade";
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: tkoCream,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.4,
         title: Text(
-          "Accessories",
+          "Toys",
           style: GoogleFonts.poppins(
               fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
         ),

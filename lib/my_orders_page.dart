@@ -5,12 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'order_tracking_page.dart';
+import 'home_page.dart';
 
-/// Local copies of brand colours (names can match, this file does not
-/// import home_page.dart so there is no conflict here).
-const tkoOrange = Color(0xFFFF6A00);
-const tkoCream  = Color(0xFFF7F2EC);
-const tkoBrown  = Color(0xFF6A3B1A);
 
 class MyOrdersPage extends StatelessWidget {
   const MyOrdersPage({super.key});

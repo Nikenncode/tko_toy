@@ -85,17 +85,17 @@ class _TradingCardsPageState extends State<TradingCardsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: tkoCream,
 
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 0.4,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: tkoBrown),
         title: Text(
-          "Trading Cards",
+          'Trading Cards',
           style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            fontWeight: FontWeight.w700,
+            color: tkoBrown,
           ),
         ),
       ),
@@ -151,7 +151,6 @@ class _TradingCardsPageState extends State<TradingCardsPage> {
                 },
               ),
 
-              //Subcategory
               if (cat.isExpanded)
                 Container(
                   color: Colors.grey.shade100,
@@ -167,12 +166,13 @@ class _TradingCardsPageState extends State<TradingCardsPage> {
                               style: GoogleFonts.poppins(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
+                                color: tkoBrown,
                               ),
                             ),
                             trailing: const Icon(
                               Icons.chevron_right,
                               size: 22,
-                              color: Colors.black54,
+                              color: tkoBrown,
                             ),
                             onTap: () {
                               final allTabs = getAllTabs();

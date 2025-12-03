@@ -24,7 +24,6 @@ class MembershipQRPage extends StatelessWidget {
 
     return Stack(
       children: [
-        // Background similar to HomePage: cream → white + soft halo
         Positioned.fill(
           child: Container(
             decoration: const BoxDecoration(
@@ -99,7 +98,6 @@ class MembershipQRPage extends StatelessWidget {
 
                     const SizedBox(height: 18),
 
-                    // Title + helper copy
                     Text(
                       "$name's Membership",
                       textAlign: TextAlign.center,
@@ -122,7 +120,6 @@ class MembershipQRPage extends StatelessWidget {
 
                     const SizedBox(height: 26),
 
-                    // LUXE QR CARD
                     _MembershipCard(
                       code: code,
                       memberId: memberId,
@@ -131,7 +128,6 @@ class MembershipQRPage extends StatelessWidget {
 
                     const SizedBox(height: 24),
 
-                    // Small reassurance / info row
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: const [
@@ -165,7 +161,6 @@ class MembershipQRPage extends StatelessWidget {
   }
 }
 
-/// Bright, eye-catchy QR card with teal / orange gradient frame
 class _MembershipCard extends StatelessWidget {
   final String code;
   final String memberId;
@@ -206,13 +201,12 @@ class _MembershipCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          color: const Color(0xFFFDF7F0), // soft warm cream
+          color: const Color(0xFFFDF7F0),
         ),
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top row: brand + status chip
             Row(
               children: [
                 const Text(
@@ -267,7 +261,6 @@ class _MembershipCard extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // Name & ID
             Text(
               name,
               maxLines: 1,
@@ -290,7 +283,6 @@ class _MembershipCard extends StatelessWidget {
 
             const SizedBox(height: 18),
 
-            // QR block with glow + subtle gradient halo
             Center(
               child: Container(
                 padding: const EdgeInsets.all(12),
@@ -328,7 +320,6 @@ class _MembershipCard extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Divider line
             Opacity(
               opacity: 0.5,
               child: Container(
@@ -347,7 +338,6 @@ class _MembershipCard extends StatelessWidget {
 
             const SizedBox(height: 10),
 
-            // Bottom info chips
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: const [

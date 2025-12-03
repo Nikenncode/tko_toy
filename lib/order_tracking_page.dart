@@ -1,9 +1,7 @@
 // lib/order_tracking_page.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-const tkoCream  = Color(0xFFF7F2EC);
-const tkoBrown  = Color(0xFF6A3B1A);
+import 'home_page.dart';
 
 class OrderTrackingPage extends StatelessWidget {
   final String orderId;
@@ -99,7 +97,6 @@ class OrderTrackingPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ----- Status card -----
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(

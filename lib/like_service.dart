@@ -10,10 +10,29 @@ class LikeService {
 
   static Future<void> likeProduct(Map<String, dynamic> product) async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
+
     final id = product["id"].toString().replaceAll("/", "_");
 
-    await _likedRef(uid).doc(id).set(product);
+    // --- Extract fields for discounts ---
+    final parentTab = product['parentTab']?.toString().toLowerCase() ?? '';
+    final rawCategory = product['category']?.toString().toLowerCase() ?? '';
+    final combined = '$parentTab $rawCategory';
+
+    String bucket = "other";
+    if (combined.contains("single")) bucket = "singles";
+    else if (combined.contains("sealed")) bucket = "sealed";
+    else if (combined.contains("supply")) bucket = "supplies";
+    else if (combined.contains("toy")) bucket = "toys";
+
+    // --- Save into Firestore with discountBucket ---
+    await _likedRef(uid).doc(id).set({
+      ...product,
+      "parentTab": parentTab,
+      "category": rawCategory,
+      "discountBucket": bucket,
+    });
   }
+
 
   static Future<void> unlikeProduct(String id) async {
     final uid = FirebaseAuth.instance.currentUser!.uid;

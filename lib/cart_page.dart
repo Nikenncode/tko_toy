@@ -4,11 +4,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+
+import 'my_orders_page.dart';
 import 'cart_service.dart';
 import 'home_page.dart';
 import 'order_summary_page.dart';
-
-/// ================== SHARED DISCOUNT HELPERS ==================
 
 Future<Map<String, dynamic>> _loadSettings() async {
   final snap =
@@ -24,13 +24,11 @@ Future<Map<String, dynamic>> _loadUserDoc(User user) async {
   return snap.data() ?? <String, dynamic>{};
 }
 
-/// category bucket = "singles" / "sealed" / "supplies" / "toys" / "other"
 double _categoryDiscountPercent({
   required Map<String, dynamic> settings,
   required String tierName,
   required String categoryBucket,
 }) {
-  // NEW: read from settings.discounts.{tierName}.{categoryBucket}
   final discounts = settings['discounts'];
   if (discounts is Map<String, dynamic>) {
     final byTier = Map<String, dynamic>.from(discounts[tierName] ?? {});
@@ -38,7 +36,6 @@ double _categoryDiscountPercent({
     if (raw is num) return raw.toDouble();
   }
 
-  // Fallback for old structure: settings.{tierName}.{categoryBucket}
   final rawTier = settings[tierName];
   if (rawTier is Map<String, dynamic>) {
     final value = rawTier[categoryBucket];
@@ -46,8 +43,6 @@ double _categoryDiscountPercent({
   }
   return 0.0;
 }
-
-/// =============================================================
 
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
@@ -101,6 +96,7 @@ class CartPage extends StatelessWidget {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white.withOpacity(.96),
+        centerTitle: true,
         title: Text(
           'My Cart',
           style: GoogleFonts.poppins(
@@ -108,8 +104,25 @@ class CartPage extends StatelessWidget {
             color: tkoBrown,
           ),
         ),
-        centerTitle: true,
+
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.history,
+              color: tkoBrown,
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const MyOrdersPage(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
+
       body: FutureBuilder<Map<String, dynamic>>(
         future: _loadSettingsAndTier(),
         builder: (context, settingsSnap) {
@@ -142,7 +155,6 @@ class CartPage extends StatelessWidget {
               double total = 0;
               double totalDiscount = 0;
 
-              // compute discounted totals
               for (final d in docs) {
                 final data = d.data();
                 final price = (data['price'] ?? 0) as num;
@@ -170,7 +182,6 @@ class CartPage extends StatelessWidget {
                 children: [
                   const SizedBox(height: 12),
 
-                  // small summary line
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Align(
@@ -187,7 +198,6 @@ class CartPage extends StatelessWidget {
 
                   const SizedBox(height: 8),
 
-                  // cart list
                   Expanded(
                     child: ListView.separated(
                       padding: const EdgeInsets.symmetric(
@@ -235,7 +245,6 @@ class CartPage extends StatelessWidget {
                     ),
                   ),
 
-                  // total + checkout
                   _CartTotalBar(
                     total: total,
                     totalDiscount: totalDiscount,
@@ -297,51 +306,77 @@ class _CartItemCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // image
             ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               child: Container(
-                width: 70,
-                height: 70,
-                color: Colors.grey.shade100,
-                child: imageUrl.isNotEmpty
-                    ? Image.network(
-                  imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Icon(
-                    Icons.image_not_supported,
-                    color: Colors.grey.shade400,
-                  ),
+                width: 75,
+                height: 75,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: (imageUrl == null || imageUrl.isEmpty)
+                    ? Container(
+                  color: Colors.grey.shade200,
                 )
-                    : Icon(
-                  Icons.shopping_bag_outlined,
-                  color: Colors.grey.shade400,
-                  size: 30,
+                    : Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
                 ),
               ),
             ),
 
             const SizedBox(width: 12),
 
-            // text + qty
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // name
-                  Text(
-                    name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: tkoBrown,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
 
-                  // category
+                      Expanded(
+                        child: Text(
+                          name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: tkoBrown,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(width: 10),
+
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          size: 20,
+                        ),
+                        onPressed: () async {
+                          await CartService.instance.removeFromCart(docId);
+                          // ignore: use_build_context_synchronously
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Removed from cart'),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+
                   if (category.isNotEmpty)
                     Text(
                       category,
@@ -353,15 +388,12 @@ class _CartItemCard extends StatelessWidget {
 
                   const SizedBox(height: 6),
 
-                  // price + discount row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // price + line total
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // original unit price
                           Text(
                             '\$${unitPrice.toStringAsFixed(2)}',
                             style: GoogleFonts.poppins(
@@ -371,13 +403,12 @@ class _CartItemCard extends StatelessWidget {
                             ),
                           ),
 
-                          // base line vs discounted line
                           if (discountPercent > 0)
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Line total: \$${lineTotal.toStringAsFixed(2)}',
+                                  'Total: \$${lineTotal.toStringAsFixed(2)}',
                                   style: GoogleFonts.poppins(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
@@ -385,7 +416,7 @@ class _CartItemCard extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  'You save \$${lineDiscount.toStringAsFixed(2)} (${discountPercent.toStringAsFixed(0)}%)',
+                                  'Saving \$${lineDiscount.toStringAsFixed(2)} (${discountPercent.toStringAsFixed(0)}%)',
                                   style: GoogleFonts.poppins(
                                     fontSize: 11,
                                     color: Colors.green.shade700,
@@ -395,7 +426,7 @@ class _CartItemCard extends StatelessWidget {
                             )
                           else
                             Text(
-                              'Line total: \$${baseLine.toStringAsFixed(2)}',
+                              'Total: \$${baseLine.toStringAsFixed(2)}',
                               style: GoogleFonts.poppins(
                                 fontSize: 11,
                                 color: Colors.black.withOpacity(.60),
@@ -404,10 +435,27 @@ class _CartItemCard extends StatelessWidget {
                         ],
                       ),
 
-                      // qty + actions
                       Row(
                         children: [
-                          // qty chip
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(
+                              Icons.remove_circle_outline,
+                              size: 20,
+                            ),
+                            onPressed: () async {
+                              try {
+                                await CartService.instance.decreaseQty(
+                                  productId: fullData['productId'] ?? docId,
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error: $e')),
+                                );
+                              }
+                            },
+                          ),
+
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
@@ -426,9 +474,7 @@ class _CartItemCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 6),
 
-                          // add one more
                           IconButton(
                             visualDensity: VisualDensity.compact,
                             icon: const Icon(
@@ -455,24 +501,6 @@ class _CartItemCard extends StatelessWidget {
                             },
                           ),
 
-                          // delete item
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              size: 20,
-                            ),
-                            onPressed: () async {
-                              await CartService.instance
-                                  .removeFromCart(docId);
-                              // ignore: use_build_context_synchronously
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Removed from cart'),
-                                ),
-                              );
-                            },
-                          ),
                         ],
                       ),
                     ],
@@ -514,7 +542,6 @@ class _CartTotalBar extends StatelessWidget {
         top: false,
         child: Row(
           children: [
-            // total text
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -548,7 +575,6 @@ class _CartTotalBar extends StatelessWidget {
               ),
             ),
 
-            // checkout button
             SizedBox(
               height: 44,
               child: ElevatedButton(

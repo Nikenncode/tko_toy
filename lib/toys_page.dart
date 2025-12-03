@@ -55,7 +55,7 @@ class ToysPage extends StatelessWidget {
     final List<String> allTabs = items.map((e) => e.name).toList();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: tkoCream,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.4,
