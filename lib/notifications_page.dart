@@ -1,13 +1,8 @@
-// lib/notifications_page.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-/// Local copies of brand colors (avoid circular import with home_page.dart)
-const tkoOrange = Color(0xFFFF6A00);
-const tkoCream  = Color(0xFFF7F2EC);
-const tkoBrown  = Color(0xFF6A3B1A);
+import 'home_page.dart';
 
 class NotificationsPage extends StatelessWidget {
   const NotificationsPage({super.key});

@@ -52,16 +52,16 @@ class ProductsPage extends StatelessWidget {
     ];
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: tkoCream,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 0.4,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: tkoBrown),
         title: Text(
-          "Products",
+          'Products',
           style: GoogleFonts.poppins(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: Colors.black87,
+            fontWeight: FontWeight.w700,
+            color: tkoBrown,
           ),
         ),
         actions: [
@@ -72,7 +72,7 @@ class ProductsPage extends StatelessWidget {
                 MaterialPageRoute(builder: (_) => const NotificationsPage()),
               );
             },
-            icon: const Icon(Icons.notifications_none, color: Colors.black87),
+            icon: const Icon(Icons.notifications_none, color: tkoBrown,),
           ),
           Stack(
             clipBehavior: Clip.none,
@@ -84,7 +84,7 @@ class ProductsPage extends StatelessWidget {
                     MaterialPageRoute(builder: (_) => const CartPage()),
                   );
                 },
-                icon: const Icon(Icons.shopping_cart_outlined, color: Colors.black87),
+                icon: const Icon(Icons.shopping_cart_outlined, color: tkoBrown,),
               ),
 
               Positioned(

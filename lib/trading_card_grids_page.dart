@@ -421,7 +421,7 @@ class _CardsGridPageState extends State<CardsGridPage>
     final firebaseCollection = _getFirebaseCollection();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: tkoCream,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.4,

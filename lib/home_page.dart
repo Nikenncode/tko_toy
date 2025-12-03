@@ -34,7 +34,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late int index;
+  int index = 0;
 
   @override
   void initState() {
@@ -311,6 +311,10 @@ class _HomeTab extends StatelessWidget {
 
                 final double posterHeight =
                     (MediaQuery.of(context).size.width - 32) * 0.48;
+
+                FirebaseFirestore.instance
+                    .doc('users/${FirebaseAuth.instance.currentUser!.uid}')
+                    .set({'tier': curTier.name}, SetOptions(merge: true));
 
                 return CustomScrollView(
                   slivers: [

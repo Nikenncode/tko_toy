@@ -1,13 +1,12 @@
-// lib/order_summary_page.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'payment_page.dart';
 import 'cart_service.dart';
 import 'home_page.dart' show tkoOrange, tkoCream, tkoBrown, HomePage;
 
-/// ---------- Helpers to read settings / user / discounts ----------
 
 Future<Map<String, dynamic>> _loadSettings() async {
   final snap =
@@ -23,7 +22,6 @@ Future<Map<String, dynamic>> _loadUserDoc(User user) async {
   return snap.data() ?? <String, dynamic>{};
 }
 
-/// earnMultipliers.Featherweight = 1, Heavyweight = 1.5, etc.
 double _earnMultiplierForTier(
     Map<String, dynamic> settings,
     String tierName,
@@ -35,8 +33,6 @@ double _earnMultiplierForTier(
   return 1.0;
 }
 
-/// Try to normalize a category string into one of our buckets
-/// "singles" / "sealed" / "supplies" / "toys"
 String _inferBucket(dynamic raw) {
   final text = raw?.toString().toLowerCase() ?? '';
 
@@ -51,11 +47,6 @@ String _inferBucket(dynamic raw) {
   return '';
 }
 
-/// Look up discount percent (0–100) for this tier + bucket.
-///
-/// Supports 2 Firestore shapes:
-/// 1) settings/general: { discounts: { "Featherweight": { "singles": 5, ... } } }
-/// 2) settings/general: { "Featherweight": { "singles": 5, ... }, ... }
 double _categoryDiscountPercent({
   required Map<String, dynamic> settings,
   required String tierName,
@@ -63,21 +54,18 @@ double _categoryDiscountPercent({
 }) {
   Map<String, dynamic>? tierMap;
 
-  // Option A: nested under "discounts"
   final discountsRoot = settings['discounts'];
   if (discountsRoot is Map<String, dynamic> &&
       discountsRoot[tierName] is Map<String, dynamic>) {
     tierMap = Map<String, dynamic>.from(discountsRoot[tierName]);
   }
 
-  // Option B: top-level tier field
   if (tierMap == null && settings[tierName] is Map<String, dynamic>) {
     tierMap = Map<String, dynamic>.from(settings[tierName]);
   }
 
   if (tierMap == null) return 0.0;
 
-  // Try to match bucket key even if case / formatting differ
   final bucketLower = bucket.toLowerCase();
   String? matchedKey;
 
@@ -97,7 +85,6 @@ double _categoryDiscountPercent({
   return 0.0;
 }
 
-/// Helper just for the summary box
 Future<Map<String, dynamic>> _loadSettingsAndTier() async {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) {
@@ -114,8 +101,6 @@ Future<Map<String, dynamic>> _loadSettingsAndTier() async {
     'tierName': tierName,
   };
 }
-
-/// -----------------------------------------------------------------
 
 class OrderSummaryPage extends StatefulWidget {
   const OrderSummaryPage({super.key});
@@ -160,14 +145,12 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     setState(() => _isPlacing = true);
 
     try {
-      // 1) Load settings + user to know tier + multipliers
       final settings = await _loadSettings();
       final userDoc = await _loadUserDoc(user);
 
       final tierName = (userDoc['tier'] ?? 'Featherweight') as String;
       final earnX = _earnMultiplierForTier(settings, tierName);
 
-      // 2) Load cart
       final cartRef = FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -193,7 +176,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         final qty = (data['qty'] ?? 1) as int;
         final baseLine = price.toDouble() * qty;
 
-        // Prefer stored discountBucket; fallback to category inference
         String bucket =
         (data['discountBucket'] ?? _inferBucket(data['category']))
             .toString();
@@ -241,7 +223,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         'fullAddress': _addressCtrl.text.trim(),
       };
 
-      // 3) user/{uid}/orders
       final userOrderRef = FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -259,7 +240,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         'address': address,
       });
 
-      // 4) orders_master
       final masterRef =
       FirebaseFirestore.instance.collection('orders_master');
 
@@ -278,7 +258,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         'address': address,
       });
 
-      // 5) Points: total * earnMultiplier
       final pointsEarned = (total * earnX).floor();
 
       final userDocRef =
@@ -296,7 +275,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         });
       });
 
-      // 6) Clear cart + go home
       await CartService.instance.clearCart();
 
       if (!mounted) return;
@@ -401,7 +379,19 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: _isPlacing ? null : _placeOrder,
+                  onPressed: _isPlacing
+                      ? null
+                      : () async {
+                    final cartTotal = await CartService.instance.getCartTotal();
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PaymentPage(amount: cartTotal),
+                      ),
+                    );
+                  },
+
                   style: ElevatedButton.styleFrom(
                     backgroundColor: tkoOrange,
                     foregroundColor: Colors.black,
@@ -436,7 +426,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
   }
 }
 
-/// small section title
 class _SectionTitle extends StatelessWidget {
   final String text;
   const _SectionTitle(this.text);
@@ -454,7 +443,6 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-/// styled text field
 class _TextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -513,7 +501,6 @@ class _TextField extends StatelessWidget {
   }
 }
 
-/// shows a short list of cart items
 class _CartPreviewBox extends StatelessWidget {
   const _CartPreviewBox();
 
@@ -613,7 +600,6 @@ class _CartPreviewRow extends StatelessWidget {
   }
 }
 
-/// ✅ totals box WITH DISCOUNT + final total (matches _placeOrder)
 class _SummaryTotalsBox extends StatelessWidget {
   const _SummaryTotalsBox();
 
@@ -678,6 +664,11 @@ class _SummaryTotalsBox extends StatelessWidget {
             final totalBeforeDiscount = subtotal + shipping;
             final totalAfterDiscount = totalBeforeDiscount - discountTotal;
 
+            const double hstRate = 0.13;
+            final hst = totalAfterDiscount * hstRate;
+
+            final grandTotal = totalAfterDiscount + hst;
+
             return Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -691,9 +682,10 @@ class _SummaryTotalsBox extends StatelessWidget {
                   _row('Discount', -discountTotal),
                   const SizedBox(height: 6),
                   _row('Shipping', shipping),
+                  const SizedBox(height: 6),
+                  _row('HST (13%)', hst),
                   const Divider(height: 18),
-                  _row('Total after tier perks', totalAfterDiscount,
-                      isBold: true),
+                  _row('Grand Total', grandTotal, isBold: true),
                 ],
               ),
             );

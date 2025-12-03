@@ -21,12 +21,6 @@ class CartService {
     return _cartRef().snapshots();
   }
 
-  /// Try to infer a discount bucket from any category string we get.
-  /// Examples:
-  ///  - "One Piece Singles"  -> "singles"
-  ///  - "Pokemon Sealed"     -> "sealed"
-  ///  - "Supplies & Sleeves" -> "supplies"
-  ///  - "Toys & Beyblades"   -> "toys"
   String _inferBucketFromCategory(dynamic raw) {
     final text = raw?.toString().toLowerCase() ?? '';
 
@@ -41,9 +35,6 @@ class CartService {
     return '';
   }
 
-  /// Add item (or increase qty if it already exists).
-  /// You can optionally pass [discountBucket]; if you don’t,
-  /// we’ll infer it from [category].
   Future<void> addToCart({
     required String productId,
     required String name,
@@ -55,7 +46,6 @@ class CartService {
   }) async {
     final ref = _cartRef();
 
-    // Decide bucket once and store it for later
     String bucket =
     (discountBucket?.trim().isNotEmpty == true)
         ? discountBucket!.trim()
@@ -63,7 +53,6 @@ class CartService {
 
     if (bucket.isEmpty) bucket = 'other';
 
-    // Try to find existing cart row by productId
     final existing =
     await ref.where('productId', isEqualTo: productId).limit(1).get();
 
@@ -77,7 +66,6 @@ class CartService {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      // If old row has no discountBucket, back-fill it
       final existingBucket = (data['discountBucket'] ?? '').toString();
       if (existingBucket.isEmpty && bucket.isNotEmpty) {
         updateData['discountBucket'] = bucket;
@@ -92,11 +80,57 @@ class CartService {
         'qty': qty,
         'imageUrl': imageUrl,
         'category': category,
-        'discountBucket': bucket, // 👈 stored for cart + order summary
+        'discountBucket': bucket,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
     }
+  }
+
+  Future<void> decreaseQty({required String productId}) async {
+    final ref = _cartRef();
+
+    final existing =
+    await ref.where('productId', isEqualTo: productId).limit(1).get();
+
+    if (existing.docs.isEmpty) return;
+
+    final doc = existing.docs.first;
+    final currentQty = (doc.data()['qty'] ?? 1) as int;
+
+    if (currentQty > 1) {
+      await doc.reference.update({
+        'qty': currentQty - 1,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } else {
+      await doc.reference.delete();
+    }
+  }
+
+  Future<double> getCartTotal() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return 0;
+
+    final snap = await FirebaseFirestore.instance
+        .collection("users")
+        .doc(user.uid)
+        .collection("cart")
+        .get();
+
+    if (snap.docs.isEmpty) return 0;
+
+    double subtotal = 0;
+
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      final price = (data["price"] ?? 0).toDouble();
+      final qty = (data["qty"] ?? 1) as int;
+
+      subtotal += price * qty;
+    }
+
+    return subtotal;
   }
 
   Future<void> updateQty(String cartDocId, int qty) async {

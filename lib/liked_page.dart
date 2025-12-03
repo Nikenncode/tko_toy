@@ -7,7 +7,7 @@ import 'Product_description.dart';
 import 'home_page.dart';
 import 'cart_page.dart';
 import 'cart_service.dart';
-import 'notifications_page.dart' as notif;  // 👈 use prefix here
+import 'notifications_page.dart' as notif;
 
 
 num? _getPrice(List? variants) {
@@ -22,6 +22,8 @@ num? _getPrice(List? variants) {
   return null;
 }
 
+
+
 class LikedPage extends StatelessWidget {
   const LikedPage({super.key});
 
@@ -33,10 +35,26 @@ class LikedPage extends StatelessWidget {
       final title = product["title"]?.toString() ?? "";
       final images = (product["images"] ?? []) as List;
       final imageUrl = images.isNotEmpty ? images.first : "";
+
       final category =
           product["category"]?.toString() ??
               product["parentTab"]?.toString() ??
               "";
+
+      // ----------- FIXED DISCOUNT BUCKET -----------
+      String bucket = "";
+      final parentTab =
+          product['parentTab']?.toString().toLowerCase() ?? '';
+      final rawCategory =
+          product['category']?.toString().toLowerCase() ?? '';
+
+      final combined = '$parentTab $rawCategory';
+
+      if (combined.contains("single")) bucket = "singles";
+      else if (combined.contains("sealed")) bucket = "sealed";
+      else if (combined.contains("supply")) bucket = "supplies";
+      else if (combined.contains("toy")) bucket = "toys";
+      else bucket = "other";
 
       final productId = product["docId"]?.toString() ??
           product["id"]?.toString() ??
@@ -49,6 +67,7 @@ class LikedPage extends StatelessWidget {
         price: price,
         imageUrl: imageUrl,
         category: category,
+        discountBucket: bucket,   // 🔥 FIXED
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -68,6 +87,49 @@ class LikedPage extends StatelessWidget {
       );
     }
   }
+
+  Future<double> computeDiscountedPrice({
+    required double basePrice,
+    required String bucket,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return basePrice;
+
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+
+    final tier = (userDoc.data()?['tier'] ?? 'Featherweight').toString();
+
+    final settingsDoc = await FirebaseFirestore.instance
+        .collection('settings')
+        .doc('general')
+        .get();
+
+    final settings = settingsDoc.data() ?? {};
+
+    // Discount tables from Firestore
+    Map<String, dynamic> tierDisc = {};
+
+    if (settings['discounts'] is Map) {
+      final d = settings['discounts'][tier];
+      if (d is Map) tierDisc = Map<String, dynamic>.from(d);
+    }
+
+    if (tierDisc.isEmpty && settings[tier] is Map) {
+      tierDisc = Map<String, dynamic>.from(settings[tier]);
+    }
+
+    final raw = tierDisc[bucket];
+    if (raw is num) {
+      final pct = raw.toDouble();
+      return basePrice * (1 - pct / 100);
+    }
+
+    return basePrice;
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -311,14 +373,59 @@ class LikedPage extends StatelessWidget {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
 
-                                      Text(
-                                        "C\$ ${(productPrice ?? 0).toStringAsFixed(2)}",
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black87,
-                                        ),
+                                      FutureBuilder<double>(
+                                        future: () async {
+                                          if (productPrice == null) return 0.0;
+
+                                          // discount bucket you already calculated
+                                          String bucket = "";
+                                          final parentTab = data['parentTab']?.toString().toLowerCase() ?? '';
+                                          final rawCategory = data['category']?.toString().toLowerCase() ?? '';
+                                          final combined = '$parentTab $rawCategory';
+
+                                          if (combined.contains("single")) bucket = "singles";
+                                          else if (combined.contains("sealed")) bucket = "sealed";
+                                          else if (combined.contains("supply")) bucket = "supplies";
+                                          else if (combined.contains("toy")) bucket = "toys";
+                                          else bucket = "other";
+
+                                          return computeDiscountedPrice(
+                                            basePrice: productPrice!.toDouble(),
+                                            bucket: bucket,
+                                          );
+                                        }(),
+                                        builder: (context, snap) {
+                                          final discounted = snap.data ?? productPrice!.toDouble();
+                                          final hasDiscount = discounted < productPrice!;
+
+                                          return Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              // Original Price
+                                              Text(
+                                                "C\$ ${productPrice!.toStringAsFixed(2)}",
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: hasDiscount ? 12 : 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: hasDiscount ? Colors.grey : Colors.black87,
+                                                  decoration: hasDiscount ? TextDecoration.lineThrough : null,
+                                                ),
+                                              ),
+
+                                              if (hasDiscount)
+                                                Text(
+                                                  "C\$ ${discounted.toStringAsFixed(2)}",
+                                                  style: GoogleFonts.poppins(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.green.shade700,
+                                                  ),
+                                                ),
+                                            ],
+                                          );
+                                        },
                                       ),
+
 
                                       GestureDetector(
                                         onTap: () async {
@@ -414,5 +521,3 @@ class LikedPage extends StatelessWidget {
     );
   }
 }
-
-

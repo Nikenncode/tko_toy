@@ -198,7 +198,6 @@ class OrderDetailsPage extends StatelessWidget {
     );
   }
 
-  /// ===== STATUS TRACKER (unchanged) =====
   Widget _statusTracker(String status) {
     final steps = [
       "pending",
