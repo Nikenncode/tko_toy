@@ -51,4 +51,5 @@ class LikeService {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     return _likedRef(uid).snapshots();
   }
+
 }

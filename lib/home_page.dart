@@ -15,6 +15,7 @@ import 'notification_service.dart';
 import 'notifications_page.dart';
 import 'cart_page.dart';
 import 'liked_page.dart';
+import 'like_service.dart';
 import 'my_orders_page.dart';
 import 'support_page.dart';
 
@@ -188,17 +189,25 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       body: SafeArea(child: pages[index]),
-      bottomNavigationBar: TkoBottomNav(
-        index: index,
-        onChanged: (i) {
-          if (i == 2) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const OffersListScreen()),
-            );
-            return;
-          }
-          setState(() => index = i);
+      bottomNavigationBar: StreamBuilder<QuerySnapshot>(
+        stream: LikeService.likedItemsStream(),
+        builder: (context, snap) {
+          final count = snap.data?.docs.length ?? 0;
+
+          return TkoBottomNav(
+            index: index,
+            wishlistCount: count,
+            onChanged: (i) {
+              if (i == 2) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LikedPage()),
+                );
+                return;
+              }
+              setState(() => index = i);
+            },
+          );
         },
       ),
     );
@@ -1457,10 +1466,13 @@ class _DiscountsPanel extends StatelessWidget {
 class TkoBottomNav extends StatelessWidget {
   final int index;
   final ValueChanged<int> onChanged;
+  final int wishlistCount;
 
   const TkoBottomNav({
+    super.key,
     required this.index,
     required this.onChanged,
+    required this.wishlistCount,
   });
 
   @override
@@ -1501,6 +1513,7 @@ class TkoBottomNav extends StatelessWidget {
               activeIcon: Icons.favorite,
               label: 'Wishlist',
               isActive: index == 2,
+              badgeCount: wishlistCount,
               onTap: () {
                 Navigator.push(
                   context,
@@ -1566,34 +1579,40 @@ class _NavItem extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                isActive ? activeIcon : icon,
-                size: isActive ? 22 : 20,
-                color: isActive ? tkoBrown : Colors.black54,
-              ),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    isActive ? activeIcon : icon,
+                    size: isActive ? 24 : 22,
+                    color: isActive ? tkoBrown : Colors.black54,
+                  ),
 
-              if (badgeCount > 0)
-                Positioned(
-                  right: -6,
-                  top: -4,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.grey,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      badgeCount.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
+                  if (badgeCount > 0)
+                    Positioned(
+                      right: -8,
+                      top: -6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          badgeCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
+                ],
+              ),
 
               const SizedBox(height: 2),
+
               Text(
                 label,
                 style: TextStyle(
@@ -1604,7 +1623,6 @@ class _NavItem extends StatelessWidget {
               ),
             ],
           ),
-
         ),
       ),
     );

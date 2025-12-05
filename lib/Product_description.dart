@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'home_page.dart';
 import 'cart_service.dart';
 import 'cart_page.dart';
+import 'like_service.dart';
 
 class ProductDetailsPage extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -586,29 +587,37 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         ),
       ),
 
-      bottomNavigationBar: TkoBottomNav(
-        index: -1,
-        onChanged: (newIndex) {
-          if (newIndex == 0) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const HomePage()),
-            );
-          }
-          if (newIndex == 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => const HomePage(initialTab: 1)),
-            );
-          }
-          if (newIndex == 3) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => const HomePage(initialTab: 3)),
-            );
-          }
+      bottomNavigationBar: StreamBuilder<QuerySnapshot>(
+        stream: LikeService.likedItemsStream(),
+        builder: (context, snap) {
+          final wishlistCount = snap.data?.docs.length ?? 0;
+
+          return TkoBottomNav(
+            index: -1,
+            wishlistCount: wishlistCount,
+            onChanged: (newIndex) {
+              if (newIndex == 0) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HomePage()),
+                );
+              }
+              if (newIndex == 1) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const HomePage(initialTab: 1)),
+                );
+              }
+              if (newIndex == 3) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const HomePage(initialTab: 3)),
+                );
+              }
+            },
+          );
         },
       ),
     );

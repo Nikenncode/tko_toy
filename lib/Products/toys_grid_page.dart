@@ -376,31 +376,37 @@ class _ToysGridPageState extends State<ToysGridPage>
         ],
       ),
 
-      bottomNavigationBar: TkoBottomNav(
-        index: -1,
-        onChanged: (newIndex) {
-          switch (newIndex) {
-            case 0:
-              Navigator.pushAndRemoveUntil(
+      bottomNavigationBar: StreamBuilder<QuerySnapshot>(
+        stream: LikeService.likedItemsStream(),
+        builder: (context, snap) {
+          final wishlistCount = snap.data?.docs.length ?? 0;
+
+          return TkoBottomNav(
+            index: -1,
+            wishlistCount: wishlistCount,
+            onChanged: (newIndex) {
+              if (newIndex == 0) {
+                Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (_) => const HomePage()),
-                      (route) => false);
-              break;
-            case 1:
-              Navigator.pushAndRemoveUntil(
+                );
+              }
+              if (newIndex == 1) {
+                Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
                       builder: (_) => const HomePage(initialTab: 1)),
-                      (route) => false);
-              break;
-            case 3:
-              Navigator.pushAndRemoveUntil(
+                );
+              }
+              if (newIndex == 3) {
+                Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
                       builder: (_) => const HomePage(initialTab: 3)),
-                      (route) => false);
-              break;
-          }
+                );
+              }
+            },
+          );
         },
       ),
     );

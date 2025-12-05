@@ -22,7 +22,7 @@ class _SupportPageState extends State<SupportPage> {
   bool _sending = false;
 
   User? get _user => FirebaseAuth.instance.currentUser;
-  static const String _companyEmail = 'Joypatel.1102@gmail.com';
+  static const String _companyEmail = 'tkotoyco@gmail.com';
   static const String _companyPhone = '226-332-8380';
   static const String _companyPhoneDigits = '12263328380';
 

@@ -380,34 +380,37 @@ class _SuppliesGridPageState extends State<SuppliesGridPage>
         ],
       ),
 
-      bottomNavigationBar: TkoBottomNav(
-        index: -1,
-        onChanged: (newIndex) {
-          switch (newIndex) {
-            case 0:
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const HomePage()),
-                    (route) => false,
-              );
-              break;
+      bottomNavigationBar: StreamBuilder<QuerySnapshot>(
+        stream: LikeService.likedItemsStream(),
+        builder: (context, snap) {
+          final wishlistCount = snap.data?.docs.length ?? 0;
 
-            case 1:
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const HomePage(initialTab: 1)),
-                    (route) => false,
-              );
-              break;
-
-            case 3:
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const HomePage(initialTab: 3)),
-                    (route) => false,
-              );
-              break;
-          }
+          return TkoBottomNav(
+            index: -1,
+            wishlistCount: wishlistCount,
+            onChanged: (newIndex) {
+              if (newIndex == 0) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HomePage()),
+                );
+              }
+              if (newIndex == 1) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const HomePage(initialTab: 1)),
+                );
+              }
+              if (newIndex == 3) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const HomePage(initialTab: 3)),
+                );
+              }
+            },
+          );
         },
       ),
     );
