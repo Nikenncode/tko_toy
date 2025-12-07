@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:simple_icons/simple_icons.dart';
 
 import 'profile_page.dart';
+import 'calendar_page.dart';
 import 'membership_qr_page.dart';
 import 'discord_page.dart';
 import 'products_page.dart';
@@ -65,7 +66,7 @@ class _HomePageState extends State<HomePage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      debugPrint('🔥 FCM onMessage received!');
+      debugPrint('FCM onMessage received!');
       final notif = message.notification;
 
       if (uid != null && notif != null) {
@@ -565,6 +566,7 @@ class _PosterCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
+                          fontSize: 18,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -574,6 +576,7 @@ class _PosterCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
+                            fontSize: 12,
                             color: Colors.white.withOpacity(.85),
                           ),
                         ),
@@ -583,7 +586,7 @@ class _PosterCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 TextButton(
                   style: TextButton.styleFrom(
-                    backgroundColor: Colors.black.withOpacity(.25),
+                    backgroundColor: Colors.grey.withOpacity(.55),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -594,6 +597,10 @@ class _PosterCard extends StatelessWidget {
                     ),
                   ),
                   onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CalendarPage()),
+                    );
                   },
                   child: Text(
                     item.ctaText.isEmpty ? 'Details' : item.ctaText,
@@ -650,7 +657,7 @@ int? _nextThreshold(List<_Tier> tiers, int pts) {
 int _tierIndexByName(List<_Tier> tiers, String name) =>
     tiers.indexWhere((t) => t.name.toLowerCase() == name.toLowerCase());
 
-//IER CARD
+//TIER CARD
 class _TierCard extends StatelessWidget {
   final String tier;
   final int yearPoints;
@@ -1260,7 +1267,7 @@ class _BenefitsSheetState extends State<_BenefitsSheet>
           const SizedBox(height: 12),
           const Text(
             'Your Benefits',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 8),
           TabBar(
@@ -1410,37 +1417,59 @@ class _DiscountsPanel extends StatelessWidget {
 
       rows.add(
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
             children: [
               const Icon(
-                Icons.check_circle_outline,
-                size: 18,
+                Icons.check_circle_rounded,
+                size: 22,
                 color: tkoBrown,
               ),
-              const SizedBox(width: 10),
-              Expanded(child: Text(key)),
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Text(
+                  key,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade800,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+
               Text(
-                '$valueText%',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                "$valueText%",
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                  color: tkoBrown,
+                ),
               ),
             ],
           ),
         ),
       );
-      rows.add(const Divider(height: 1));
+
+      rows.add(
+        Divider(
+          height: 1,
+          color: Colors.grey.shade300,
+        ),
+      );
     }
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: const [
           BoxShadow(
             color: Colors.black12,
-            blurRadius: 10,
-            offset: Offset(0, 4),
+            blurRadius: 14,
+            offset: Offset(0, 5),
           )
         ],
       ),
@@ -1448,19 +1477,23 @@ class _DiscountsPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '$tierName Discounts',
+            "$tierName Discounts",
             style: const TextStyle(
-              fontSize: 16,
+              fontSize: 18,
               fontWeight: FontWeight.w900,
+              color: tkoBrown,
+              height: 1.2,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 12),
+
           ...rows,
         ],
       ),
     );
   }
 }
+
 
 //BOTTOM NAV
 class TkoBottomNav extends StatelessWidget {
