@@ -285,36 +285,54 @@ class _LoginSignupPageState extends State<LoginSignupPage>
                         // Divider
                         Row(
                           children: const [
-                            Expanded(child: Divider()),
+                            Expanded(
+                              child: Divider(
+                                color: Colors.black,
+                                thickness: 1.2,
+                              ),
+                            ),
                             SizedBox(width: 8),
                             Text(
                               'or email',
-                              style: TextStyle(color: Colors.black54),
+                              style: TextStyle(color: Colors.black87),
                             ),
                             SizedBox(width: 8),
-                            Expanded(child: Divider()),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Tab pill
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(.03),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: TabBar(
-                            controller: _tab,
-                            indicator: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              gradient: LinearGradient(
-                                colors: isSignIn
-                                    ? [tkoOrange.withOpacity(.18), tkoGold]
-                                    : [tkoTeal.withOpacity(.16), tkoTeal],
+                            Expanded(
+                              child: Divider(
+                                color: Colors.black,
+                                thickness: 1.2,
                               ),
                             ),
-                            labelColor: Colors.black,
-                            unselectedLabelColor: Colors.black54,
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        const SizedBox(height: 10),
+
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white30,
+                            borderRadius: BorderRadius.circular(16),
+
+                          ),
+
+                          child: TabBar(
+                            controller: _tab,
+
+                            indicatorSize: TabBarIndicatorSize.tab,
+
+                            indicator: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              gradient: LinearGradient(
+                                colors: isSignIn
+                                    ? [tkoOrange.withOpacity(.22), tkoGold.withOpacity(.85)]
+                                    : [tkoTeal.withOpacity(.22), tkoTeal],
+                              ),
+                            ),
+
+                            labelColor: Colors.black,            // selected text color
+                            unselectedLabelColor: Colors.black54, // non-selected tab text
+
                             labelStyle: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
@@ -323,17 +341,18 @@ class _LoginSignupPageState extends State<LoginSignupPage>
                               fontWeight: FontWeight.w500,
                               fontSize: 13,
                             ),
+
                             tabs: const [
-                              Tab(text: 'Sign in'),
-                              Tab(text: 'Sign up'),
+                              Tab(text: "Sign in"),
+                              Tab(text: "Sign up"),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 10),
 
-                        // Forms — SMALLER HEIGHT
+                        const SizedBox(height: 8),
+
                         SizedBox(
-                          height: 290, // was 340
+                          height: 290,
                           child: TabBarView(
                             controller: _tab,
                             children: [
