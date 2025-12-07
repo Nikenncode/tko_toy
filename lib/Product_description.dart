@@ -72,7 +72,116 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
   String get _plainDescription {
     final raw = widget.product['description']?.toString() ?? "";
-    return raw.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+
+    String text = raw.replaceAll(RegExp(r'<[^>]*>'), '');
+
+    text = text.replaceAll('&amp;', '&');
+
+    text = text.replaceAll('\r\n', '\n');
+    text = text.replaceAll('\n\n\n', '\n\n');
+    text = text.trim();
+
+    return text;
+  }
+
+  List<Widget> _buildDescriptionLines(String desc) {
+    final lines = desc.split('\n');
+    final widgets = <Widget>[];
+
+    String? pendingHeading;
+
+    for (var line in lines) {
+      line = line.trim();
+      if (line.isEmpty) {
+        widgets.add(const SizedBox(height: 10));
+        continue;
+      }
+
+      final isHeading = line.endsWith(':');
+
+      //Heading detected
+      if (isHeading) {
+        pendingHeading = line.replaceAll(":", "").trim();
+        continue;
+      }
+
+      //Content after heading
+      if (pendingHeading != null) {
+        final split = _splitFirstSentence(line);
+
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: "$pendingHeading: ",
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: Colors.black,
+                    ),
+                  ),
+                  TextSpan(
+                    text: split.first,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      height: 1.45,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+
+        if (split.length > 1) {
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.only(left: 0, bottom: 10),
+              child: Text(
+                split.sublist(1).join(" "),
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  height: 1.45,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          );
+        }
+
+        pendingHeading = null;
+        continue;
+      }
+
+      //Regular paragraph
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Text(
+            line,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              height: 1.45,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
+  List<String> _splitFirstSentence(String text) {
+    final idx = text.indexOf('. ');
+    if (idx == -1) return [text];
+    final first = text.substring(0, idx + 1);
+    final rest = text.substring(idx + 2);
+    return [first, rest];
   }
 
   // figure out category key for discount map
@@ -574,15 +683,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              _plainDescription.isNotEmpty
-                  ? _plainDescription
-                  : "No description available.",
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                height: 1.4,
-              ),
-            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _buildDescriptionLines(_plainDescription),
+            )
+
           ],
         ),
       ),
