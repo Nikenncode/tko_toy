@@ -2,11 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'like_service.dart';
+
 import 'home_page.dart';
+import 'like_service.dart';
 
 class OffersListScreen extends StatelessWidget {
   const OffersListScreen({super.key});
+
+  // ---------- Firestore stream ----------
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _offersStream() {
     return FirebaseFirestore.instance
@@ -14,6 +17,8 @@ class OffersListScreen extends StatelessWidget {
         .orderBy('createdAt', descending: true)
         .snapshots();
   }
+
+  // ---------- Helpers ----------
 
   IconData _iconFromName(String? name) {
     switch ((name ?? '').toLowerCase()) {
@@ -35,10 +40,10 @@ class OffersListScreen extends StatelessWidget {
   }
 
   Color _colorFromHex(String? hex) {
-    if (hex == null || hex.isEmpty) return Colors.blueAccent;
+    if (hex == null || hex.isEmpty) return Colors.orangeAccent;
     var value = hex.replaceAll('#', '');
     if (value.length == 6) value = 'FF$value';
-    final intColor = int.tryParse(value, radix: 16) ?? 0xFF2196F3;
+    final intColor = int.tryParse(value, radix: 16) ?? 0xFFFF6A00;
     return Color(intColor);
   }
 
@@ -53,10 +58,14 @@ class OffersListScreen extends StatelessWidget {
     }
   }
 
+  // ---------- Build ----------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
+
+      // ---------- Bottom nav with wishlist count ----------
       bottomNavigationBar: StreamBuilder<QuerySnapshot>(
         stream: LikeService.likedItemsStream(),
         builder: (context, snap) {
@@ -71,39 +80,41 @@ class OffersListScreen extends StatelessWidget {
                   context,
                   MaterialPageRoute(builder: (_) => const HomePage()),
                 );
-              }
-              if (newIndex == 1) {
+              } else if (newIndex == 1) {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => const HomePage(initialTab: 1)),
+                    builder: (_) => const HomePage(initialTab: 1),
+                  ),
                 );
-              }
-              if (newIndex == 3) {
+              } else if (newIndex == 3) {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => const HomePage(initialTab: 3)),
+                    builder: (_) => const HomePage(initialTab: 3),
+                  ),
                 );
               }
             },
           );
         },
       ),
+
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
         centerTitle: false,
         title: Text(
-          "Discover",
+          'Discover',
           style: GoogleFonts.poppins(
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
             fontSize: 20,
             color: Colors.black87,
           ),
         ),
       ),
 
+      // ---------- Body ----------
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _offersStream(),
         builder: (context, snapshot) {
@@ -111,7 +122,9 @@ class OffersListScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return const Center(child: Text("Failed to load announcements"));
+            return const Center(
+              child: Text('Failed to load announcements'),
+            );
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return Center(
@@ -124,7 +137,7 @@ class OffersListScreen extends StatelessWidget {
                         size: 50, color: Colors.grey),
                     const SizedBox(height: 10),
                     Text(
-                      "No announcements yet",
+                      'No announcements yet',
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -132,7 +145,7 @@ class OffersListScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "New events, product drops and offers\nwill show up here.",
+                      'New events, product drops and offers\nwill show up here.',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
                         fontSize: 13,
@@ -151,8 +164,8 @@ class OffersListScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
             itemCount: docs.length,
             separatorBuilder: (_, __) => const SizedBox(height: 14),
-            itemBuilder: (_, i) {
-              final data = docs[i].data();
+            itemBuilder: (context, index) {
+              final data = docs[index].data();
 
               final title       = (data['title'] ?? '') as String;
               final subtitle    = (data['subtitle'] ?? '') as String;
@@ -166,13 +179,19 @@ class OffersListScreen extends StatelessWidget {
               final icon  = _iconFromName(iconName);
               final color = _colorFromHex(colorHex);
 
-              final chip = type.isEmpty
+              final hasImage   = imageUrl != null && imageUrl.isNotEmpty;
+              final hasDeeplink = deeplink != null && deeplink.isNotEmpty;
+
+              // Small type chip (PRODUCT / OFFER etc.)
+              final Widget? chip = type.isEmpty
                   ? null
                   : Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 3),
+                  horizontal: 8,
+                  vertical: 3,
+                ),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(.10),
+                  color: color.withOpacity(0.10),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
@@ -187,7 +206,7 @@ class OffersListScreen extends StatelessWidget {
 
               return InkWell(
                 borderRadius: BorderRadius.circular(14),
-                onTap: () => _openDeeplink(deeplink),
+                onTap: hasDeeplink ? () => _openDeeplink(deeplink) : null,
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -200,95 +219,103 @@ class OffersListScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ---------- Header (icon + text + chip) ----------
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          leading: CircleAvatar(
+                            radius: 26,
+                            backgroundColor: color.withOpacity(0.15),
+                            child: Icon(icon, color: color, size: 26),
+                          ),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  title,
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ),
+                              if (chip != null) chip,
+                            ],
+                          ),
+                          subtitle: Text(
+                            subtitle,
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
+                          ),
                         ),
-                        leading: CircleAvatar(
-                          radius: 26,
-                          backgroundColor: color.withOpacity(0.15),
-                          child: Icon(icon, color: color, size: 26),
-                        ),
-                        title: Row(
-                          children: [
-                            Expanded(
+
+                        // ---------- Image banner ----------
+                        if (hasImage) ...[
+                          const SizedBox(height: 4),
+                          AspectRatio(
+                            aspectRatio: 16 / 9, // adjust if you want taller/shorter
+                            child: Image.network(
+                              imageUrl!,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return Container(
+                                  color: Colors.grey[200],
+                                  child: const Center(
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (_, __, ___) => Container(
+                                color: Colors.grey[200],
+                                alignment: Alignment.center,
+                                child: const Icon(Icons.broken_image_outlined),
+                              ),
+                            ),
+                          ),
+                        ],
+
+                        // ---------- CTA button ----------
+                        if (hasDeeplink) ...[
+                          const SizedBox(height: 6),
+                          Padding(
+                            padding:
+                            const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                            child: OutlinedButton(
+                              onPressed: () => _openDeeplink(deeplink),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: color),
+                                foregroundColor: color,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 8,
+                                ),
+                              ),
                               child: Text(
-                                title,
+                                buttonLabel ?? 'View product',
                                 style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Colors.black87,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
-                            if (chip != null) chip,
-                          ],
-                        ),
-                        subtitle: Text(
-                          subtitle,
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: Colors.black54,
                           ),
-                        ),
-                      ),
-
-                      //image banner
-                      if (imageUrl != null && imageUrl.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-
-                        ClipRRect(
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(14),
-                            bottomRight: Radius.circular(14),
-                          ),
-                          child: Container(
-                            height: 160,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[200],
-                              image: DecorationImage(
-                                image: NetworkImage(imageUrl),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                        ),
+                        ],
                       ],
-
-                      //CTA button
-                      if (deeplink != null && deeplink.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                          child: OutlinedButton(
-                            onPressed: () => _openDeeplink(deeplink),
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: color),
-                              foregroundColor: color,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 18,
-                                vertical: 8,
-                              ),
-                            ),
-                            child: Text(
-                              buttonLabel ?? 'View details',
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
                 ),
               );
