@@ -180,11 +180,12 @@ class CalendarEventTile extends StatelessWidget {
                 children: [
                   Container(
                     width: 6,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF4B0082),
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(14),
-                        bottomLeft: Radius.circular(14),
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.teal,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(12),
+                        bottomLeft: Radius.circular(12),
                       ),
                     ),
                   ),
@@ -254,7 +255,7 @@ class CalendarPage extends StatelessWidget {
         centerTitle: true,
         iconTheme: const IconThemeData(color: tkoBrown),
         title: Text(
-          'Event Schedule',
+          'Weekly Events',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w700,
             color: tkoBrown,

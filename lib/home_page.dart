@@ -15,6 +15,7 @@ import 'discover_page.dart';
 import 'notification_service.dart';
 import 'notifications_page.dart';
 import 'cart_page.dart';
+import 'calendar_event_page.dart';
 import 'liked_page.dart';
 import 'like_service.dart';
 import 'my_orders_page.dart';
@@ -926,46 +927,6 @@ class _ActionGrid extends StatelessWidget {
     );
   }
 
-  void _openQuickScan(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
-    final code = 'TKO:$uid';
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      backgroundColor: Colors.white,
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.black12,
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Quick Scan',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 12),
-            QrImageView(data: code, size: 200),
-            const SizedBox(height: 8),
-            const Text(
-              'Show this at checkout to earn or redeem points.',
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -998,11 +959,16 @@ class _ActionGrid extends StatelessWidget {
               },
             ),
             _PrimaryActionCard(
-              icon: Icons.qr_code_scanner_rounded,
-              label: 'Scan',
-              subtitle: 'Earn & redeem fast',
+              icon: Icons.calendar_month_sharp,
+              label: 'Calendar',
+              subtitle: 'Event Updates',
               accent: tkoBrown,
-              onTap: () => _openQuickScan(context),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CalendarEventsPage()),
+                  );
+                },
             ),
             _PrimaryActionCard(
               icon: SimpleIcons.discord,
